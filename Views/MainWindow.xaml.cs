@@ -3,6 +3,7 @@ using AccesClientWPF.Models;
 using AccesClientWPF.ViewModels;
 using System.Windows.Controls;
 using System.Windows.Input;
+using System.Windows.Media;
 
 namespace AccesClientWPF.Views
 {
@@ -22,6 +23,43 @@ namespace AccesClientWPF.Views
                 {
                     viewModel.HandleFileDoubleClick(selectedFile);
                 }
+            }
+        }
+
+        private void FileList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (sender is ListView listView)
+            {
+                ScrollViewer scrollViewer = FindVisualChild<ScrollViewer>(listView);
+                if (scrollViewer != null)
+                {
+                    scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta / 3);
+                    e.Handled = true;
+                }
+            }
+        }
+
+        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                    return typedChild;
+
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                    return childOfChild;
+            }
+            return null;
+        }
+
+        private void ScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (sender is ScrollViewer scrollViewer)
+            {
+                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta / 3);
+                e.Handled = true;
             }
         }
     }

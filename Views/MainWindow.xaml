@@ -41,21 +41,33 @@
             </Border>
 
             <!-- Contenu principal -->
-            <ScrollViewer DockPanel.Dock="Right" Padding="10">
+            <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled"
+                          PreviewMouseWheel="ScrollViewer_PreviewMouseWheel">
                 <StackPanel>
-                    <ListView ItemsSource="{Binding AllFiles}"
+                    <ListView Name="FileList"
+                              ItemsSource="{Binding AllFiles}"
                               MouseDoubleClick="FileList_MouseDoubleClick"
                               Background="Transparent" BorderThickness="0">
                         <ListView.ItemTemplate>
                             <DataTemplate>
-                                <Border CornerRadius="10" Background="#FDFEFE" Padding="5" Margin="5" Effect="{DynamicResource DropShadowEffect}">
-                                    <StackPanel Orientation="Horizontal" Height="50" VerticalAlignment="Center">
-                                        <Image Width="48" Height="48" Margin="5">
-                                            <Image.Source>
-                                                <Binding Path="Type" Converter="{StaticResource FileTypeToIconConverter}"/>
-                                            </Image.Source>
-                                        </Image>
-                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center" FontSize="16" FontWeight="Bold" Foreground="#2C3E50"/>
+                                <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
+                                    <StackPanel Orientation="Horizontal" Height="60" VerticalAlignment="Center">
+
+                                        <!-- Ajout d'un fond clair et d'un Border pour améliorer la visibilité du logo -->
+                                        <Border Background="#EAEDED" Padding="5" CornerRadius="8" Margin="5">
+                                            <Image Width="48" Height="48"
+                                                HorizontalAlignment="Center"
+                                                VerticalAlignment="Center">
+                                                <Image.Source>
+                                                    <Binding Path="Type" Converter="{StaticResource FileTypeToIconConverter}"/>
+                                                </Image.Source>
+                                            </Image>
+
+                                        </Border>
+
+                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
+                                                   FontSize="15" FontWeight="Bold" Foreground="#2C3E50"
+                                                   Margin="10,0,0,0"/>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>

@@ -59,22 +59,25 @@ namespace AccesClientWPF.ViewModels
 
             foreach (var file in Directory.GetFiles(directoryPath))
             {
-                string fileName = Path.GetFileNameWithoutExtension(file);
+                string fileName = Path.GetFileName(file);
 
-                if (fileName.StartsWith("Any-")) fileName = fileName.Substring(4);
-                else if (fileName.StartsWith("RDS-")) fileName = fileName.Substring(4);
-                else if (fileName.StartsWith("VPN-")) fileName = fileName.Substring(4);
+                // Vérifie si le fichier commence par "RDS-", "VPN-" ou "Any-"
+                if (fileName.StartsWith("RDS-") || fileName.StartsWith("VPN-") || fileName.StartsWith("Any-"))
+                {
+                    string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file).Substring(4); // Supprime le préfixe
 
-                string type = Path.GetFileName(file).StartsWith("Any-") ? "AnyDesk" :
-                              Path.GetFileName(file).StartsWith("RDS-") ? "RDS" :
-                              Path.GetFileName(file).StartsWith("VPN-") ? "VPN" : "Other";
+                    string type = fileName.StartsWith("Any-") ? "AnyDesk" :
+                                  fileName.StartsWith("RDS-") ? "RDS" :
+                                  fileName.StartsWith("VPN-") ? "VPN" : "Other";
 
-                var fileModel = new FileModel { Name = fileName, Type = type, FullPath = file };
-                AllFiles.Add(fileModel);
+                    var fileModel = new FileModel { Name = fileNameWithoutExtension, Type = type, FullPath = file };
+                    AllFiles.Add(fileModel);
+                }
             }
 
             OnPropertyChanged(nameof(AllFiles));
         }
+
 
         public void HandleFileDoubleClick(FileModel file)
         {
