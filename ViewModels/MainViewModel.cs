@@ -102,6 +102,8 @@ namespace AccesClientWPF.ViewModels
                 if (credentials != null)
                 {
                     string decryptedPassword = EncryptionHelper.Decrypt(credentials.MotDePasse);
+                    UpdateRdpFile(file.FullPath);
+
                     Process.Start(new ProcessStartInfo
                     {
                         FileName = "cmd.exe",
@@ -116,6 +118,42 @@ namespace AccesClientWPF.ViewModels
                 }
             }
         }
+
+        private void UpdateRdpFile(string rdpFilePath)
+        {
+            try
+            {
+                int screenWidth = (int)SystemParameters.PrimaryScreenWidth;
+                int screenHeight = (int)SystemParameters.PrimaryScreenHeight;
+
+                var lines = File.ReadAllLines(rdpFilePath).ToList();
+
+                // Mise à jour ou ajout des paramètres RDP
+                UpdateOrAddSetting(lines, "screen mode id", "2"); // Mode plein écran
+                UpdateOrAddSetting(lines, "desktopwidth", screenWidth.ToString());
+                UpdateOrAddSetting(lines, "desktopheight", screenHeight.ToString());
+                UpdateOrAddSetting(lines, "smart sizing", "1");
+                UpdateOrAddSetting(lines, "dynamic resolution", "1");
+
+                File.WriteAllLines(rdpFilePath, lines);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de la mise à jour du fichier RDP : {ex.Message}");
+            }
+        }
+
+        private void UpdateOrAddSetting(List<string> lines, string key, string value)
+        {
+            string setting = $"{key}:i:{value}";
+            int index = lines.FindIndex(line => line.StartsWith($"{key}:i:"));
+
+            if (index >= 0)
+                lines[index] = setting;
+            else
+                lines.Add(setting);
+        }
+
 
         private void OpenRdsAccountWindow(object parameter)
         {
