@@ -1,0 +1,78 @@
+﻿<Project Sdk="Microsoft.NET.Sdk.WindowsDesktop">
+
+	<PropertyGroup>
+		<OutputType>WinExe</OutputType>
+		<TargetFramework>net8.0-windows</TargetFramework>
+		<Nullable>enable</Nullable>
+		<ImplicitUsings>enable</ImplicitUsings>
+		<UseWPF>true</UseWPF>
+		<EnableDefaultPageItems>false</EnableDefaultPageItems>
+		<ApplicationIcon>DALL·E-2025-02-22-14.09.08-A-modern_-professional-icon-for-a-client-access-management-application.ico</ApplicationIcon>
+	</PropertyGroup>
+
+	<ItemGroup>
+	  <None Remove="Resources\anydesk.png" />
+	  <None Remove="Resources\default.png" />
+	  <None Remove="Resources\remote_desktop.png" />
+	  <None Remove="Resources\vpn.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <Content Include="DALL·E-2025-02-22-14.09.08-A-modern_-professional-icon-for-a-client-access-management-application.ico" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+		<Page Include="Views\MainWindow.xaml" />
+		<Page Include="Views\RdsAccountWindow.xaml" />
+		<Page Include="Views\EditRdsAccountWindow.xaml" />
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <Resource Include="Resources\anydesk.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Resources\default.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Resources\remote_desktop.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	  <Resource Include="Resources\vpn.png">
+	    <CopyToOutputDirectory>Never</CopyToOutputDirectory>
+	  </Resource>
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <Compile Update="Properties\Resources.Designer.cs">
+	    <DesignTime>True</DesignTime>
+	    <AutoGen>True</AutoGen>
+	    <DependentUpon>Resources.resx</DependentUpon>
+	  </Compile>
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <EmbeddedResource Update="Properties\Resources.resx">
+	    <Generator>ResXFileCodeGenerator</Generator>
+	    <LastGenOutput>Resources.Designer.cs</LastGenOutput>
+	  </EmbeddedResource>
+	</ItemGroup>
+
+
+	<ItemGroup>
+	  <None Update="Views\EditRdsAccountWindow.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </None>
+	  <None Update="Views\RdsAccountWindow.xaml">
+	    <Generator>MSBuild:Compile</Generator>
+	  </None>
+	</ItemGroup>
+
+</Project>
