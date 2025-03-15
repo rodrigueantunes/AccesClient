@@ -7,7 +7,16 @@
     </ApplicationDefinition>
   </ItemGroup>
   <ItemGroup>
+    <Compile Update="Views\AddEntryWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Views\ClientManagementWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Update="Views\EditRdsAccountWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Views\ExistingElementsWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
     <Compile Update="Views\RdsAccountWindow.xaml.cs">
@@ -15,7 +24,16 @@
     </Compile>
   </ItemGroup>
   <ItemGroup>
+    <None Update="Views\AddEntryWindow.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Views\ClientManagementWindow.xaml">
+      <SubType>Designer</SubType>
+    </None>
     <None Update="Views\EditRdsAccountWindow.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Views\ExistingElementsWindow.xaml">
       <SubType>Designer</SubType>
     </None>
     <None Update="Views\RdsAccountWindow.xaml">

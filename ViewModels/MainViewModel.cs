@@ -5,173 +5,237 @@ using System.IO;
 using System.Linq;
 using System.ComponentModel;
 using System.Windows.Input;
-using AccesClientWPF.Models;
 using Newtonsoft.Json;
-using AccesClientWPF.Helpers;
+using AccesClientWPF.Models;
 using AccesClientWPF.Commands;
 using System.Windows;
 using AccesClientWPF.Views;
+using AccesClientWPF.Helpers;
 
 namespace AccesClientWPF.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
-        public event PropertyChangedEventHandler PropertyChanged;
-        public ObservableCollection<ClientModel> Clients { get; set; } = new();
-        public ObservableCollection<FileModel> AllFiles { get; set; } = new();
-        private ClientModel _selectedClient;
-        public ICommand ManageJsonCommand { get; }
+        private readonly string _jsonFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "database.json");
+        private readonly string _accountsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "rds_accounts.json");
 
-        public ClientModel SelectedClient
+        private bool _isMultiMonitor;
+        public bool IsMultiMonitor
         {
-            get => _selectedClient;
+            get => _isMultiMonitor;
             set
             {
-                _selectedClient = value;
-                OnPropertyChanged(nameof(SelectedClient));
-                if (value != null)
-                    LoadFiles(value.Path);
+                if (_isMultiMonitor != value)
+                {
+                    _isMultiMonitor = value;
+                    OnPropertyChanged(nameof(IsMultiMonitor));
+                }
             }
         }
 
+        public ObservableCollection<ClientModel> Clients { get; set; } = new();
+        public ObservableCollection<FileModel> FilteredFiles { get; set; } = new();
+
+        private ClientModel selectedClient;
+        public ClientModel SelectedClient
+        {
+            get => selectedClient;
+            set
+            {
+                selectedClient = value;
+                OnPropertyChanged(nameof(SelectedClient));
+                LoadFilesForSelectedClient();
+            }
+        }
+
+        private FileModel selectedFile;
+        public FileModel SelectedFile
+        {
+            get => selectedFile;
+            set
+            {
+                selectedFile = value;
+                OnPropertyChanged(nameof(SelectedFile));
+            }
+        }
+
+        public ICommand ManageJsonCommand { get; }
+        public ICommand ManageClientsCommand { get; }
+        public ICommand AddFileCommand { get; }
+        public ICommand MoveUpFileCommand { get; }
+        public ICommand MoveDownFileCommand { get; }
+
+        public event PropertyChangedEventHandler PropertyChanged;
+
         public MainViewModel()
         {
-            LoadClients();
             ManageJsonCommand = new RelayCommand(OpenRdsAccountWindow);
+            ManageClientsCommand = new RelayCommand(OpenClientManagementWindow);
+            AddFileCommand = new RelayCommand(_ => AddFile());
+            MoveUpFileCommand = new RelayCommand(_ => MoveUp(), _ => SelectedFile != null && FilteredFiles.IndexOf(SelectedFile) > 0);
+            MoveDownFileCommand = new RelayCommand(_ => MoveDown(), _ => SelectedFile != null && FilteredFiles.IndexOf(SelectedFile) < FilteredFiles.Count - 1);
+
+            LoadClients();
         }
 
         private void LoadClients()
         {
-            string directoryPath = @"C:\\Application\\Clients\\";
-            if (Directory.Exists(directoryPath))
-            {
-                foreach (var dir in Directory.GetDirectories(directoryPath))
-                {
-                    Clients.Add(new ClientModel { Name = Path.GetFileName(dir), Path = dir });
-                }
-            }
+            var database = LoadDatabase();
+            Clients = database.Clients;
+            OnPropertyChanged(nameof(Clients));
         }
 
-        private void LoadFiles(string directoryPath)
+        private Models.DatabaseModel LoadDatabase()
         {
-            AllFiles.Clear();
-            if (!Directory.Exists(directoryPath)) return;
+            if (!File.Exists(_jsonFilePath))
+                return new Models.DatabaseModel();
 
-            foreach (var file in Directory.GetFiles(directoryPath))
-            {
-                string fileName = Path.GetFileName(file);
-
-                // Vérifie si le fichier commence par "RDS-", "VPN-" ou "Any-"
-                if (fileName.StartsWith("RDS-") || fileName.StartsWith("VPN-") || fileName.StartsWith("Any-"))
-                {
-                    string fileNameWithoutExtension = Path.GetFileNameWithoutExtension(file).Substring(4); // Supprime le préfixe
-
-                    string type = fileName.StartsWith("Any-") ? "AnyDesk" :
-                                  fileName.StartsWith("RDS-") ? "RDS" :
-                                  fileName.StartsWith("VPN-") ? "VPN" : "Other";
-
-                    var fileModel = new FileModel { Name = fileNameWithoutExtension, Type = type, FullPath = file };
-                    AllFiles.Add(fileModel);
-                }
-            }
-
-            OnPropertyChanged(nameof(AllFiles));
+            var json = File.ReadAllText(_jsonFilePath);
+            return JsonConvert.DeserializeObject<Models.DatabaseModel>(json) ?? new Models.DatabaseModel();
         }
 
+        private void SaveDatabase(Models.DatabaseModel database)
+        {
+            var json = JsonConvert.SerializeObject(database, Formatting.Indented);
+            File.WriteAllText(_jsonFilePath, json);
+        }
+
+        private void LoadFilesForSelectedClient()
+        {
+            FilteredFiles.Clear();
+
+            if (SelectedClient != null)
+            {
+                var database = LoadDatabase();
+                foreach (var file in database.Files.Where(f => f.Client == SelectedClient.Name))
+                    FilteredFiles.Add(file);
+            }
+        }
 
         public void HandleFileDoubleClick(FileModel file)
         {
-            if (file == null) return;
-
-            if (file.FullPath.EndsWith(".rdp", StringComparison.OrdinalIgnoreCase))
-            {
+            if (file.Type == "RDS")
                 ConnectToRemoteDesktop(file);
-            }
+            if (file.Type == "AnyDesk")
+                ConnectToAnyDesk(file);
             else
-            {
-                Process.Start(new ProcessStartInfo(file.FullPath) { UseShellExecute = true });
-            }
+                MessageBox.Show($"Ouverture de {file.Type}: {file.Name}");
         }
 
         private void ConnectToRemoteDesktop(FileModel file)
         {
-            string jsonFilePath = @"C:\\Application\\Clients\\rds_accounts.json";
-            if (File.Exists(jsonFilePath))
+            var accounts = JsonConvert.DeserializeObject<ObservableCollection<RdsAccount>>(File.ReadAllText(_accountsFilePath));
+            var credentials = accounts.FirstOrDefault(a => a.Description.Equals(file.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (credentials == null)
             {
-                var jsonData = File.ReadAllText(jsonFilePath);
-                var rdsAccounts = JsonConvert.DeserializeObject<ObservableCollection<RdsAccount>>(jsonData);
-                var credentials = rdsAccounts?.FirstOrDefault(a => a.Description.Equals(file.Name, StringComparison.OrdinalIgnoreCase));
-
-                if (credentials != null)
-                {
-                    string decryptedPassword = EncryptionHelper.Decrypt(credentials.MotDePasse);
-                    UpdateRdpFile(file.FullPath);
-
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/C cmdkey /generic:{credentials.IpDns} /user:\"{credentials.NomUtilisateur}\" /pass:\"{decryptedPassword}\" && mstsc {file.FullPath}",
-                        CreateNoWindow = true,
-                        UseShellExecute = false
-                    });
-                }
-                else
-                {
-                    MessageBox.Show("Aucune information de connexion enregistrée pour ce fichier RDP.");
-                }
+                MessageBox.Show("Aucune information de connexion enregistrée pour ce fichier RDP.");
+                return;
             }
+
+            string decryptedPassword = EncryptionHelper.Decrypt(credentials.MotDePasse);
+            string args = $"/v:{credentials.IpDns} {(IsMultiMonitor ? "/multimon" : "/f")}";
+
+            Process.Start("cmd.exe", $"/C cmdkey /generic:{credentials.IpDns} /user:\"{credentials.NomUtilisateur}\" /pass:\"{decryptedPassword}\"");
+            Process.Start("mstsc", args);
         }
 
-        private void UpdateRdpFile(string rdpFilePath)
+        private void ConnectToAnyDesk(FileModel file)
         {
+            var accounts = JsonConvert.DeserializeObject<ObservableCollection<RdsAccount>>(File.ReadAllText(_accountsFilePath));
+            var credentials = accounts.FirstOrDefault(a => a.Description.Equals(file.Name, StringComparison.OrdinalIgnoreCase));
+
+            if (credentials == null)
+            {
+                MessageBox.Show("Aucune information de connexion enregistrée pour AnyDesk.");
+                return;
+            }
+
+            string decryptedPassword = EncryptionHelper.Decrypt(credentials.MotDePasse);
+            string anyDeskPath = @"C:\Program Files (x86)\AnyDesk\AnyDesk.exe";
+
+            if (!File.Exists(anyDeskPath))
+            {
+                MessageBox.Show("AnyDesk n'est pas installé à l'emplacement attendu.");
+                return;
+            }
+
+            // Argument avec le nom d'utilisateur complet (même s'il y a des espaces)
+            string args = $"echo \"{decryptedPassword}\" | \"{credentials.NomUtilisateur}\" --with-password";
+
+            ProcessStartInfo psi = new ProcessStartInfo
+            {
+                FileName = anyDeskPath,
+                Arguments = args,
+                UseShellExecute = false,
+                CreateNoWindow = true,  // Ne pas afficher de fenêtre de commande
+            };
+
             try
             {
-                int screenWidth = (int)SystemParameters.PrimaryScreenWidth;
-                int screenHeight = (int)SystemParameters.PrimaryScreenHeight;
-
-                var lines = File.ReadAllLines(rdpFilePath).ToList();
-
-                // Mise à jour ou ajout des paramètres RDP
-                UpdateOrAddSetting(lines, "screen mode id", "2"); // Mode plein écran
-                UpdateOrAddSetting(lines, "desktopwidth", screenWidth.ToString());
-                UpdateOrAddSetting(lines, "desktopheight", screenHeight.ToString());
-                UpdateOrAddSetting(lines, "smart sizing", "1");
-                UpdateOrAddSetting(lines, "dynamic resolution", "1");
-
-                File.WriteAllLines(rdpFilePath, lines);
+                Process.Start(psi);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erreur lors de la mise à jour du fichier RDP : {ex.Message}");
+                MessageBox.Show($"Erreur lors de l'ouverture de AnyDesk : {ex.Message}");
             }
-        }
-
-        private void UpdateOrAddSetting(List<string> lines, string key, string value)
-        {
-            string setting = $"{key}:i:{value}";
-            int index = lines.FindIndex(line => line.StartsWith($"{key}:i:"));
-
-            if (index >= 0)
-                lines[index] = setting;
-            else
-                lines.Add(setting);
         }
 
 
         private void OpenRdsAccountWindow(object parameter)
         {
-            var rdsAccountWindow = new RdsAccountWindow();
-            if (rdsAccountWindow.ShowDialog() == true)
+            new RdsAccountWindow().ShowDialog();
+        }
+
+        private void OpenClientManagementWindow(object parameter)
+        {
+            var clientWindow = new ClientManagementWindow(Clients);
+            if (clientWindow.ShowDialog() == true)
             {
-                LoadFiles(SelectedClient?.Path);
+                LoadClients();
+                LoadFilesForSelectedClient();
             }
         }
 
-        protected void OnPropertyChanged(string propertyName)
+        private void AddFile()
         {
-            PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
+            var database = LoadDatabase();
+            var addEntryWindow = new AddEntryWindow(Clients, SelectedClient);
+            if (addEntryWindow.ShowDialog() == true && addEntryWindow.FileEntry != null)
+            {
+                database.Files.Add(addEntryWindow.FileEntry);
+                SaveDatabase(database);
+                LoadFilesForSelectedClient();
+            }
         }
 
+        public void MoveUp()
+        {
+            var index = FilteredFiles.IndexOf(SelectedFile);
+            if (index > 0)
+            {
+                FilteredFiles.Move(index, index - 1);
+                SaveFiles();
+            }
+        }
 
+        public void MoveDown()
+        {
+            var index = FilteredFiles.IndexOf(SelectedFile);
+            if (index < FilteredFiles.Count - 1)
+            {
+                FilteredFiles.Move(index, index + 1);
+                SaveFiles();
+            }
+        }
+
+        private void SaveFiles()
+        {
+            var db = LoadDatabase();
+            db.Files = new ObservableCollection<FileModel>(FilteredFiles);
+            SaveDatabase(db);
+        }
+
+        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
 }

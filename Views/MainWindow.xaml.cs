@@ -12,7 +12,7 @@ namespace AccesClientWPF.Views
         public MainWindow()
         {
             InitializeComponent();
-            DataContext = new ViewModels.MainViewModel();
+            DataContext = new MainViewModel();
         }
 
         private void FileList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
@@ -54,13 +54,21 @@ namespace AccesClientWPF.Views
             return null;
         }
 
-        private void ScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        private void MoveUpButton_Click(object sender, RoutedEventArgs e)
         {
-            if (sender is ScrollViewer scrollViewer)
+            if (DataContext is MainViewModel viewModel)
             {
-                scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta / 3);
-                e.Handled = true;
+                viewModel.MoveUp();
             }
         }
+
+        private void MoveDownButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is MainViewModel viewModel)
+            {
+                viewModel.MoveDown();
+            }
+        }
+
     }
 }

@@ -2,7 +2,6 @@
 using System.Globalization;
 using System.Windows.Data;
 using System.Windows.Media.Imaging;
-using AccesClientWPF.Helpers;
 
 namespace AccesClientWPF.Converters
 {
@@ -24,15 +23,15 @@ namespace AccesClientWPF.Converters
                 {
                     return new BitmapImage(new Uri(iconPath));
                 }
-                catch (Exception ex)
+                catch
                 {
-                    Console.WriteLine($"Erreur lors du chargement de l'icône : {ex.Message}");
                     return new BitmapImage(new Uri("pack://application:,,,/AccesClientWPF;component/Resources/default.png"));
                 }
             }
             return null;
         }
 
-        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture) => throw new NotImplementedException();
+        public object ConvertBack(object value, Type targetType, object parameter, CultureInfo culture)
+            => throw new NotImplementedException();
     }
 }

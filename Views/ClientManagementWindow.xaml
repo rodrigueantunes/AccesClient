@@ -1,0 +1,66 @@
+﻿<Window x:Class="AccesClientWPF.Views.ClientManagementWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Gestion des Clients" Height="400" Width="500"
+        Background="#EAEDED"
+        WindowStartupLocation="CenterScreen">
+
+    <Window.Resources>
+        <!-- Style pour les boutons arrondis -->
+        <Style x:Key="RoundedButton" TargetType="Button">
+            <Setter Property="Background" Value="#5DADE2"/>
+            <Setter Property="Foreground" Value="White"/>
+            <Setter Property="FontWeight" Value="Bold"/>
+            <Setter Property="BorderThickness" Value="0"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="10" 
+                                BorderBrush="Transparent">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
+    </Window.Resources>
+
+    <Grid Margin="10">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
+            <TextBlock Text="Nom du client :" VerticalAlignment="Center" Margin="0,0,10,0"/>
+            <TextBox x:Name="TxtClientName" Width="200" Background="#FFFFFF"/>
+            <Button Content="Ajouter le Client" Width="120" Margin="10,0,0,0" Click="AddClient_Click" Style="{StaticResource RoundedButton}"/>
+        </StackPanel>
+
+        <Grid Grid.Row="1">
+            <Grid.ColumnDefinitions>
+                <ColumnDefinition Width="*"/>
+                <ColumnDefinition Width="Auto"/>
+            </Grid.ColumnDefinitions>
+
+            <ListBox x:Name="LstClients" DisplayMemberPath="Name" Height="150" Background="#D5DBDB" BorderThickness="0"/>
+
+            <!-- Flèches pour monter et descendre les clients -->
+            <StackPanel Orientation="Vertical" VerticalAlignment="Center" Grid.Column="1" Margin="10,0,0,0">
+                <Button Content="&#x2191;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40" 
+                        FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Click="MoveUpClient_Click"/>
+                <Button Content="&#x2193;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40" 
+                        FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Click="MoveDownClient_Click"/>
+            </StackPanel>
+        </Grid>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Row="2" Margin="0,10,0,0">
+            <Button Content="Éléments Existant" Width="126" Margin="5" Click="ViewElements_Click" Style="{StaticResource RoundedButton}"/>
+            <Button Content="Ajouter un Élément" Width="152" Margin="5" Click="AddEntry_Click" Style="{StaticResource RoundedButton}"/>
+            <Button Content="Supprimer" Width="80" Margin="5" Click="DeleteClient_Click" Style="{StaticResource RoundedButton}"/>
+            <Button Content="Fermer" Width="80" Margin="5" Click="Close_Click" Style="{StaticResource RoundedButton}"/>
+        </StackPanel>
+    </Grid>
+</Window>

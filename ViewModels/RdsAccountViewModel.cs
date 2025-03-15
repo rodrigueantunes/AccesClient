@@ -14,7 +14,7 @@ namespace AccesClientWPF.ViewModels
 {
     public class RdsAccountViewModel : INotifyPropertyChanged
     {
-        private const string JsonFilePath = @"C:\Application\Clients\rds_accounts.json";
+        private readonly string JsonFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "rds_accounts.json");
         public ObservableCollection<RdsAccount> RdsAccounts { get; set; } = new();
         private RdsAccount _selectedRdsAccount;
 
