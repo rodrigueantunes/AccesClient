@@ -1,10 +1,13 @@
-﻿using System.Collections.ObjectModel;
+﻿using System;
+using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
+using Microsoft.Win32;
 using AccesClientWPF.Models;
 using Newtonsoft.Json;
+using AccesClientWPF.Helpers;
 
 namespace AccesClientWPF.Views
 {
@@ -17,26 +20,47 @@ namespace AccesClientWPF.Views
 
         public FileModel FileEntry { get; private set; }
 
-        // Constructeur pour l'ajout d'un élément
-        public AddEntryWindow(ObservableCollection<ClientModel> clients, ClientModel selectedClient = null)
+        public AddEntryWindow(ObservableCollection<ClientModel> clients, ClientModel selectedClient = null, FileModel editingFile = null)
         {
             InitializeComponent();
             _clients = clients;
             CmbClient.ItemsSource = _clients;
             CmbClient.SelectedItem = selectedClient;
-            CmbClient.IsEnabled = false; // Rendre le champ client non modifiable
+            CmbClient.IsEnabled = false;
+            _editingFile = editingFile;
             LoadFiles();
+
+            if (_editingFile != null)
+            {
+                TxtName.Text = _editingFile.Name;
+                CmbType.SelectedItem = CmbType.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Tag.ToString() == _editingFile.Type);
+
+                var credentials = _editingFile.FullPath.Split(':');
+
+                if (_editingFile.Type == "RDS")
+                {
+                    TxtIpDns.Text = credentials.ElementAtOrDefault(0);
+                    TxtUsername.Text = credentials.ElementAtOrDefault(1);
+                    TxtPassword.Password = string.Empty;
+                }
+                else if (_editingFile.Type == "AnyDesk")
+                {
+                    TxtAnydeskId.Text = credentials.ElementAtOrDefault(0);
+                    TxtAnydeskPassword.Password = string.Empty;
+                }
+                else if (_editingFile.Type == "VPN")
+                {
+                    TxtVpnPath.Text = _editingFile.FullPath;
+                }
+            }
         }
 
-        // Constructeur pour l'édition d'un élément
-        public AddEntryWindow(ObservableCollection<ClientModel> clients, ClientModel selectedClient, FileModel editingFile)
-            : this(clients, selectedClient)
+        private void CmbType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            _editingFile = editingFile;
-            TxtName.Text = editingFile.Name;
-
-            // Convertir l'énumération en string pour le ComboBox
-            CmbType.SelectedItem = CmbType.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Tag.ToString() == editingFile.Type.ToString());
+            var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag.ToString();
+            PanelRDS.Visibility = selectedType == "RDS" ? Visibility.Visible : Visibility.Collapsed;
+            PanelAnyDesk.Visibility = selectedType == "AnyDesk" ? Visibility.Visible : Visibility.Collapsed;
+            PanelVPN.Visibility = selectedType == "VPN" ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void LoadFiles()
@@ -44,10 +68,11 @@ namespace AccesClientWPF.Views
             if (File.Exists(_jsonFilePath))
             {
                 var jsonData = File.ReadAllText(_jsonFilePath);
-                var database = JsonConvert.DeserializeObject<DatabaseModel>(jsonData);
+                var database = JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(jsonData);
                 _files = database?.Files ?? new ObservableCollection<FileModel>();
             }
         }
+
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
@@ -57,32 +82,39 @@ namespace AccesClientWPF.Views
                 return;
             }
 
-            var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag.ToString();  // Utilisation du Tag
+            var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag.ToString();
+            string fullPath = string.Empty;
 
-            // Conversion de string à FileType pour correspondre avec l'énumération
-            FileType typeEnum = selectedType switch
+            if (selectedType == "RDS")
             {
-                "RDS" => FileType.RDS,
-                "VPN" => FileType.VPN,
-                "AnyDesk" => FileType.AnyDesk,
-                _ => FileType.RDS  // Valeur par défaut
-            };
-
-            // Ici on doit convertir `typeEnum` en string pour être compatible avec les autres champs
-            var fileTypeString = Enum.GetName(typeof(FileType), typeEnum);
+                string encryptedPassword = EncryptionHelper.Encrypt(TxtPassword.Password);
+                fullPath = $"{TxtIpDns.Text}:{TxtUsername.Text}:{encryptedPassword}";
+            }
+            else if (selectedType == "AnyDesk")
+            {
+                string encryptedPassword = EncryptionHelper.Encrypt(TxtAnydeskPassword.Password);
+                fullPath = $"{TxtAnydeskId.Text}:{encryptedPassword}";
+            }
+            else if (selectedType == "VPN")
+            {
+                fullPath = TxtVpnPath.Text;
+            }
 
             var newEntry = new FileModel
             {
                 Name = TxtName.Text,
-                Type = fileTypeString,  // Assignation de la chaîne de caractères, pas de l'énumération
-                FullPath = "",
+                Type = selectedType,
+                FullPath = fullPath,
                 Client = ((ClientModel)CmbClient.SelectedItem).Name
             };
 
-            if (_editingFile != null)
+            if (_editingFile != null && _files.Contains(_editingFile))
             {
                 var index = _files.IndexOf(_editingFile);
-                _files[index] = newEntry;
+                if (index != -1)
+                {
+                    _files[index] = newEntry;
+                }
             }
             else
             {
@@ -95,17 +127,61 @@ namespace AccesClientWPF.Views
             Close();
         }
 
+        private Models.DatabaseModel LoadDatabase()
+        {
+            if (File.Exists(_jsonFilePath))
+            {
+                var jsonData = File.ReadAllText(_jsonFilePath);
+                return JsonConvert.DeserializeObject<Models.DatabaseModel>(jsonData) ?? new Models.DatabaseModel();
+            }
+            return new Models.DatabaseModel();
+        }
 
+        private void BrowseVpnExecutable_Click(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new OpenFileDialog();
+            if (openFileDialog.ShowDialog() == true)
+            {
+                TxtVpnPath.Text = openFileDialog.FileName;
+            }
+        }
 
         private void SaveFiles()
         {
-            var database = new DatabaseModel
-            {
-                Clients = _clients,
-                Files = _files
-            };
+            AccesClientWPF.Models.DatabaseModel existingDatabase;
 
-            File.WriteAllText(_jsonFilePath, JsonConvert.SerializeObject(database, Formatting.Indented));
+            if (File.Exists(_jsonFilePath))
+            {
+                var jsonData = File.ReadAllText(_jsonFilePath);
+                existingDatabase = JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(jsonData) ?? new AccesClientWPF.Models.DatabaseModel();
+            }
+            else
+            {
+                existingDatabase = new AccesClientWPF.Models.DatabaseModel();
+            }
+
+            foreach (var client in _clients)
+            {
+                if (!existingDatabase.Clients.Any(c => c.Name == client.Name))
+                {
+                    existingDatabase.Clients.Add(client);
+                }
+            }
+
+            foreach (var file in _files)
+            {
+                var existingFile = existingDatabase.Files.FirstOrDefault(f => f.Name == file.Name && f.Client == file.Client);
+                if (existingFile != null)
+                {
+                    existingDatabase.Files[existingDatabase.Files.IndexOf(existingFile)] = file;
+                }
+                else
+                {
+                    existingDatabase.Files.Add(file);
+                }
+            }
+
+            File.WriteAllText(_jsonFilePath, JsonConvert.SerializeObject(existingDatabase, Formatting.Indented));
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)

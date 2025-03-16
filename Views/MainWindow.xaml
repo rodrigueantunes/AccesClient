@@ -43,9 +43,6 @@
                              SelectedItem="{Binding SelectedClient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
                              Background="#D5DBDB" BorderThickness="0" Padding="5"/>
 
-                    <Button Content="Gérer les comptes de connexion" Command="{Binding ManageJsonCommand}"
-                            Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
-
                     <Button Content="Gérer les clients" Command="{Binding ManageClientsCommand}" 
                             Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
                 </StackPanel>

@@ -5,6 +5,7 @@ using System.Linq;
 using System.Windows;
 using AccesClientWPF.Models;
 using Newtonsoft.Json;
+using AccesClientWPF.Helpers;
 
 namespace AccesClientWPF.Views
 {
@@ -27,7 +28,8 @@ namespace AccesClientWPF.Views
             if (File.Exists(_jsonFilePath))
             {
                 var jsonData = File.ReadAllText(_jsonFilePath);
-                var database = JsonConvert.DeserializeObject<DatabaseModel>(jsonData) ?? new DatabaseModel();
+                var database = JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(jsonData)
+                               ?? new AccesClientWPF.Models.DatabaseModel();
 
                 var clientFiles = database.Files
                     .Where(f => f.Client == _client.Name)
@@ -43,20 +45,17 @@ namespace AccesClientWPF.Views
             }
         }
 
-        private void SaveElements()
+         private void SaveElements()
         {
             var database = File.Exists(_jsonFilePath)
-                ? JsonConvert.DeserializeObject<DatabaseModel>(File.ReadAllText(_jsonFilePath))
-                : new DatabaseModel();
+                ? JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(File.ReadAllText(_jsonFilePath))
+                : new AccesClientWPF.Models.DatabaseModel();
 
-            // Supprime les anciens fichiers du client concerné
             database.Files = new ObservableCollection<FileModel>(database.Files.Where(f => f.Client != _client.Name));
 
-            // Ajoute les fichiers actuels du client un par un
             foreach (var file in _files)
                 database.Files.Add(file);
 
-            // Sauvegarde dans le JSON
             File.WriteAllText(_jsonFilePath, JsonConvert.SerializeObject(database, Formatting.Indented));
         }
 
@@ -75,7 +74,8 @@ namespace AccesClientWPF.Views
         {
             if (LstElements.SelectedItem is FileModel selectedFile)
             {
-                var editWindow = new AddEntryWindow(new ObservableCollection<ClientModel> { _client }, _client, selectedFile);
+                var editFile = PrepareEditingFile(selectedFile);
+                var editWindow = new AddEntryWindow(new ObservableCollection<ClientModel> { _client }, _client, editFile);
                 if (editWindow.ShowDialog() == true && editWindow.FileEntry != null)
                 {
                     var index = _files.IndexOf(selectedFile);
@@ -92,6 +92,33 @@ namespace AccesClientWPF.Views
             {
                 MessageBox.Show("Veuillez sélectionner un élément à modifier.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
             }
+        }
+
+        private FileModel PrepareEditingFile(FileModel file)
+        {
+            var credentials = file.FullPath.Split(':');
+            string fullPath = string.Empty;
+
+            if (file.Type == "RDS" && credentials.Length >= 2)
+            {
+                fullPath = $"{credentials[0]}:{credentials[1]}:"; // Mot de passe vide
+            }
+            else if (file.Type == "AnyDesk" && credentials.Length >= 1)
+            {
+                fullPath = $"{credentials[0]}:"; // Mot de passe vide
+            }
+            else
+            {
+                fullPath = file.FullPath;
+            }
+
+            return new FileModel
+            {
+                Name = file.Name,
+                Type = file.Type,
+                FullPath = fullPath,
+                Client = file.Client
+            };
         }
 
         private void DeleteElement_Click(object sender, RoutedEventArgs e)

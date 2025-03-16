@@ -116,70 +116,89 @@ namespace AccesClientWPF.ViewModels
         {
             if (file.Type == "RDS")
                 ConnectToRemoteDesktop(file);
-            if (file.Type == "AnyDesk")
+            else if (file.Type == "AnyDesk")
                 ConnectToAnyDesk(file);
+            else if (file.Type == "VPN")
+                Process.Start(file.FullPath);
             else
                 MessageBox.Show($"Ouverture de {file.Type}: {file.Name}");
         }
 
+
         private void ConnectToRemoteDesktop(FileModel file)
         {
-            var accounts = JsonConvert.DeserializeObject<ObservableCollection<RdsAccount>>(File.ReadAllText(_accountsFilePath));
-            var credentials = accounts.FirstOrDefault(a => a.Description.Equals(file.Name, StringComparison.OrdinalIgnoreCase));
-
-            if (credentials == null)
+            var credentials = file.FullPath.Split(':');
+            if (credentials.Length < 3)
             {
-                MessageBox.Show("Aucune information de connexion enregistrée pour ce fichier RDP.");
+                MessageBox.Show("Les informations de connexion RDS sont incomplètes.");
                 return;
             }
 
-            string decryptedPassword = EncryptionHelper.Decrypt(credentials.MotDePasse);
-            string args = $"/v:{credentials.IpDns} {(IsMultiMonitor ? "/multimon" : "/f")}";
+            string ipDns = credentials[0];
+            string username = credentials[1];
+            string encryptedPassword = credentials[2];
+            string password = EncryptionHelper.Decrypt(encryptedPassword);
+            string args = $"/v:{ipDns} {(IsMultiMonitor ? "/multimon" : "/f")}";
 
-            Process.Start("cmd.exe", $"/C cmdkey /generic:{credentials.IpDns} /user:\"{credentials.NomUtilisateur}\" /pass:\"{decryptedPassword}\"");
+            // Ajout des informations d'identification
+            Process.Start("cmd.exe", $"/C cmdkey /generic:{ipDns} /user:\"{username}\" /pass:\"{password}\"");
+
+            // Démarrage de la connexion RDS
             Process.Start("mstsc", args);
         }
 
+
+
         private void ConnectToAnyDesk(FileModel file)
         {
-            var accounts = JsonConvert.DeserializeObject<ObservableCollection<RdsAccount>>(File.ReadAllText(_accountsFilePath));
-            var credentials = accounts.FirstOrDefault(a => a.Description.Equals(file.Name, StringComparison.OrdinalIgnoreCase));
+            var credentials = file.FullPath.Split(':');
+            string id = credentials[0];
+            string password = string.Empty;
 
-            if (credentials == null)
+            if (credentials.Length > 1 && !string.IsNullOrEmpty(credentials[1]))
             {
-                MessageBox.Show("Aucune information de connexion enregistrée pour AnyDesk.");
-                return;
+                password = EncryptionHelper.Decrypt(credentials[1]);
             }
 
-            string decryptedPassword = EncryptionHelper.Decrypt(credentials.MotDePasse);
             string anyDeskPath = @"C:\Program Files (x86)\AnyDesk\AnyDesk.exe";
-
             if (!File.Exists(anyDeskPath))
             {
                 MessageBox.Show("AnyDesk n'est pas installé à l'emplacement attendu.");
                 return;
             }
 
-            // Argument avec le nom d'utilisateur complet (même s'il y a des espaces)
-            string args = $"echo \"{decryptedPassword}\" | \"{credentials.NomUtilisateur}\" --with-password";
-
-            ProcessStartInfo psi = new ProcessStartInfo
-            {
-                FileName = anyDeskPath,
-                Arguments = args,
-                UseShellExecute = false,
-                CreateNoWindow = true,  // Ne pas afficher de fenêtre de commande
-            };
-
             try
             {
-                Process.Start(psi);
+                if (!string.IsNullOrEmpty(password))
+                {
+                    // Exécution via CMD pour utiliser 'echo' avec le mot de passe
+                    string command = $"echo {password} | \"{anyDeskPath}\" \"{id}\" --with-password";
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "cmd.exe",
+                        Arguments = $"/C {command}",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    });
+                }
+                else
+                {
+                    // Si pas de mot de passe, exécution simple
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = anyDeskPath,
+                        Arguments = $"\"{id}\"",
+                        UseShellExecute = false,
+                        CreateNoWindow = true
+                    });
+                }
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Erreur lors de l'ouverture de AnyDesk : {ex.Message}");
             }
         }
+
 
 
         private void OpenRdsAccountWindow(object parameter)
@@ -231,10 +250,24 @@ namespace AccesClientWPF.ViewModels
 
         private void SaveFiles()
         {
+            // Charger la base de données existante
             var db = LoadDatabase();
-            db.Files = new ObservableCollection<FileModel>(FilteredFiles);
+
+            // Supprimer uniquement les fichiers du client actuel
+            db.Files = new ObservableCollection<FileModel>(
+                db.Files.Where(f => f.Client != SelectedClient.Name)
+            );
+
+            // Ajouter les fichiers triés du client actuel
+            foreach (var file in FilteredFiles)
+            {
+                db.Files.Add(file);
+            }
+
+            // Sauvegarder la base de données complète
             SaveDatabase(db);
         }
+
 
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }
