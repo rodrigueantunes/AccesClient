@@ -81,7 +81,16 @@ namespace AccesClientWPF.ViewModels
         private void LoadClients()
         {
             var database = LoadDatabase();
-            Clients = database.Clients;
+
+            // Vider la collection existante au lieu de créer une nouvelle instance
+            Clients.Clear();
+
+            // Ajouter les clients de la base de données
+            foreach (var client in database.Clients)
+            {
+                Clients.Add(client);
+            }
+
             OnPropertyChanged(nameof(Clients));
         }
 
@@ -112,18 +121,103 @@ namespace AccesClientWPF.ViewModels
             }
         }
 
-        public void HandleFileDoubleClick(FileModel file)
+        public void EditSelectedFile(FileModel file = null)
         {
-            if (file.Type == "RDS")
-                ConnectToRemoteDesktop(file);
-            else if (file.Type == "AnyDesk")
-                ConnectToAnyDesk(file);
-            else if (file.Type == "VPN")
-                Process.Start(file.FullPath);
-            else
-                MessageBox.Show($"Ouverture de {file.Type}: {file.Name}");
+            FileModel selectedFile = file ?? SelectedFile;
+            if (selectedFile == null)
+            {
+                MessageBox.Show("Veuillez sélectionner un élément à modifier.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Stocker le client actuellement sélectionné
+            var currentlySelectedClient = SelectedClient;
+
+            var editWindow = new AddEntryWindow(Clients, SelectedClient, selectedFile);
+            if (editWindow.ShowDialog() == true && editWindow.FileEntry != null)
+            {
+                var database = LoadDatabase();
+                var existingFile = database.Files.FirstOrDefault(f => f.Name == selectedFile.Name && f.Client == selectedFile.Client);
+                if (existingFile != null)
+                {
+                    int index = database.Files.IndexOf(existingFile);
+                    database.Files[index] = editWindow.FileEntry;
+                    SaveDatabase(database);
+
+                    // Réappliquer la sélection du client pour recharger ses fichiers
+                    var clientName = currentlySelectedClient.Name;
+                    SelectedClient = null; // Forcer la réinitialisation  
+                    SelectedClient = Clients.FirstOrDefault(c => c.Name == clientName);
+                }
+            }
         }
 
+        public void HandleFileDoubleClick(FileModel file)
+        {
+            switch (file.Type)
+            {
+                case "RDS":
+                    ConnectToRemoteDesktop(file);
+                    break;
+                case "AnyDesk":
+                    ConnectToAnyDesk(file);
+                    break;
+                case "VPN":
+                    LaunchProgram(file.FullPath);
+                    break;
+                case "Dossier":
+                    OpenFolder(file.FullPath);
+                    break;
+                default:
+                    MessageBox.Show($"Ouverture de {file.Type}: {file.Name}", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                    break;
+            }
+        }
+
+        private void LaunchProgram(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    Process.Start(path);
+                }
+                else
+                {
+                    MessageBox.Show($"Le fichier '{path}' n'existe pas.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de l'ouverture du programme : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OpenFolder(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    // Utiliser ProcessStartInfo pour une meilleure gestion
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = string.Format("\"{0}\"", path),
+                        UseShellExecute = true
+                    };
+                    Process.Start(startInfo);
+                }
+                else
+                {
+                    MessageBox.Show($"Le dossier '{path}' n'existe pas.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de l'ouverture du dossier : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         private void ConnectToRemoteDesktop(FileModel file)
         {
@@ -141,13 +235,18 @@ namespace AccesClientWPF.ViewModels
             string args = $"/v:{ipDns} {(IsMultiMonitor ? "/multimon" : "/f")}";
 
             // Ajout des informations d'identification
-            Process.Start("cmd.exe", $"/C cmdkey /generic:{ipDns} /user:\"{username}\" /pass:\"{password}\"");
+            try
+            {
+                Process.Start("cmd.exe", $"/C cmdkey /generic:{ipDns} /user:\"{username}\" /pass:\"{password}\"");
 
-            // Démarrage de la connexion RDS
-            Process.Start("mstsc", args);
+                // Démarrage de la connexion RDS
+                Process.Start("mstsc", args);
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de la connexion RDS : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
         }
-
-
 
         private void ConnectToAnyDesk(FileModel file)
         {
@@ -199,8 +298,6 @@ namespace AccesClientWPF.ViewModels
             }
         }
 
-
-
         private void OpenRdsAccountWindow(object parameter)
         {
             new RdsAccountWindow().ShowDialog();
@@ -208,23 +305,44 @@ namespace AccesClientWPF.ViewModels
 
         private void OpenClientManagementWindow(object parameter)
         {
+            // Stocker le client actuellement sélectionné
+            var currentlySelectedClient = SelectedClient;
+
             var clientWindow = new ClientManagementWindow(Clients);
             if (clientWindow.ShowDialog() == true)
             {
                 LoadClients();
-                LoadFilesForSelectedClient();
+
+                // Restaurer la sélection du client si possible
+                if (currentlySelectedClient != null)
+                {
+                    SelectedClient = Clients.FirstOrDefault(c => c.Name == currentlySelectedClient.Name);
+                }
             }
         }
 
         private void AddFile()
         {
+            if (SelectedClient == null)
+            {
+                MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un élément.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Stocker le client actuellement sélectionné
+            var currentlySelectedClient = SelectedClient;
+
             var database = LoadDatabase();
             var addEntryWindow = new AddEntryWindow(Clients, SelectedClient);
             if (addEntryWindow.ShowDialog() == true && addEntryWindow.FileEntry != null)
             {
                 database.Files.Add(addEntryWindow.FileEntry);
                 SaveDatabase(database);
-                LoadFilesForSelectedClient();
+
+                // Réappliquer la sélection du client pour recharger ses fichiers
+                var clientName = currentlySelectedClient.Name;
+                SelectedClient = null; // Forcer la réinitialisation
+                SelectedClient = Clients.FirstOrDefault(c => c.Name == clientName);
             }
         }
 
@@ -267,7 +385,6 @@ namespace AccesClientWPF.ViewModels
             // Sauvegarder la base de données complète
             SaveDatabase(db);
         }
-
 
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }

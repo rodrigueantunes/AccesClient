@@ -16,9 +16,9 @@ namespace AccesClientWPF.Converters
                     "RDS" => "pack://application:,,,/AccesClientWPF;component/Resources/remote_desktop.png",
                     "VPN" => "pack://application:,,,/AccesClientWPF;component/Resources/vpn.png",
                     "AnyDesk" => "pack://application:,,,/AccesClientWPF;component/Resources/anydesk.png",
+                    "Dossier" => "pack://application:,,,/AccesClientWPF;component/Resources/dossier.png",
                     _ => "pack://application:,,,/AccesClientWPF;component/Resources/default.png"
                 };
-
                 try
                 {
                     return new BitmapImage(new Uri(iconPath));

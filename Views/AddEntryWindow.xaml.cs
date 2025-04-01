@@ -26,7 +26,7 @@ namespace AccesClientWPF.Views
             _clients = clients;
             CmbClient.ItemsSource = _clients;
             CmbClient.SelectedItem = selectedClient;
-            CmbClient.IsEnabled = false;
+            CmbClient.IsEnabled = selectedClient == null;
             _editingFile = editingFile;
             LoadFiles();
 
@@ -52,6 +52,10 @@ namespace AccesClientWPF.Views
                 {
                     TxtVpnPath.Text = _editingFile.FullPath;
                 }
+                else if (_editingFile.Type == "Dossier")
+                {
+                    TxtFolderPath.Text = _editingFile.FullPath;
+                }
             }
         }
 
@@ -61,6 +65,7 @@ namespace AccesClientWPF.Views
             PanelRDS.Visibility = selectedType == "RDS" ? Visibility.Visible : Visibility.Collapsed;
             PanelAnyDesk.Visibility = selectedType == "AnyDesk" ? Visibility.Visible : Visibility.Collapsed;
             PanelVPN.Visibility = selectedType == "VPN" ? Visibility.Visible : Visibility.Collapsed;
+            PanelFolder.Visibility = selectedType == "Dossier" ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void LoadFiles()
@@ -72,7 +77,6 @@ namespace AccesClientWPF.Views
                 _files = database?.Files ?? new ObservableCollection<FileModel>();
             }
         }
-
 
         private void Save_Click(object sender, RoutedEventArgs e)
         {
@@ -98,6 +102,10 @@ namespace AccesClientWPF.Views
             else if (selectedType == "VPN")
             {
                 fullPath = TxtVpnPath.Text;
+            }
+            else if (selectedType == "Dossier")
+            {
+                fullPath = TxtFolderPath.Text;
             }
 
             var newEntry = new FileModel
@@ -143,6 +151,25 @@ namespace AccesClientWPF.Views
             if (openFileDialog.ShowDialog() == true)
             {
                 TxtVpnPath.Text = openFileDialog.FileName;
+            }
+        }
+
+        private void BrowseFolder_Click(object sender, RoutedEventArgs e)
+        {
+            var dialog = new OpenFileDialog
+            {
+                Title = "Sélectionnez un dossier",
+                CheckFileExists = false,
+                CheckPathExists = true,
+                FileName = "Sélectionner ce dossier",
+                Filter = "Dossiers|*.none",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments)
+            };
+
+            if (dialog.ShowDialog() == true)
+            {
+                string folderPath = System.IO.Path.GetDirectoryName(dialog.FileName);
+                TxtFolderPath.Text = folderPath;
             }
         }
 

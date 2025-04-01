@@ -26,34 +26,6 @@ namespace AccesClientWPF.Views
             }
         }
 
-        private void FileList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
-        {
-            if (sender is ListView listView)
-            {
-                ScrollViewer scrollViewer = FindVisualChild<ScrollViewer>(listView);
-                if (scrollViewer != null)
-                {
-                    scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta / 3);
-                    e.Handled = true;
-                }
-            }
-        }
-
-        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
-        {
-            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
-            {
-                var child = VisualTreeHelper.GetChild(parent, i);
-                if (child is T typedChild)
-                    return typedChild;
-
-                var childOfChild = FindVisualChild<T>(child);
-                if (childOfChild != null)
-                    return childOfChild;
-            }
-            return null;
-        }
-
         private void MoveUpButton_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is MainViewModel viewModel)
@@ -68,6 +40,41 @@ namespace AccesClientWPF.Views
             {
                 viewModel.MoveDown();
             }
+        }
+
+        private void FileList_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            if (sender is ListView listView)
+            {
+                ScrollViewer scrollViewer = FindVisualChild<ScrollViewer>(listView);
+                if (scrollViewer != null)
+                {
+                    scrollViewer.ScrollToVerticalOffset(scrollViewer.VerticalOffset - e.Delta / 3);
+                    e.Handled = true;
+                }
+            }
+        }
+
+        // Méthode helper pour trouver un élément visuel enfant
+        private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
+        {
+            for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)
+            {
+                var child = VisualTreeHelper.GetChild(parent, i);
+                if (child is T typedChild)
+                    return typedChild;
+                var childOfChild = FindVisualChild<T>(child);
+                if (childOfChild != null)
+                    return childOfChild;
+            }
+            return null;
+        }
+
+        private void MainScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
+        {
+            ScrollViewer scv = (ScrollViewer)sender;
+            scv.ScrollToVerticalOffset(scv.VerticalOffset - e.Delta / 3);
+            e.Handled = true;
         }
 
     }

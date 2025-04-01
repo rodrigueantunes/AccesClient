@@ -10,9 +10,16 @@
 		<ApplicationIcon>DALL·E-2025-02-22-14.09.08-A-modern_-professional-icon-for-a-client-access-management-application.ico</ApplicationIcon>
 	</PropertyGroup>
 
+	<ItemGroup>
+	  <None Remove="Resources\dossier.png" />
+	</ItemGroup>
+
 	<!-- Icône de l'application -->
 	<ItemGroup>
 		<Content Include="DALL·E-2025-02-22-14.09.08-A-modern_-professional-icon-for-a-client-access-management-application.ico" />
+		<Resource Include="Resources\dossier.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Resource>
 	</ItemGroup>
 
 	<!-- Packages NuGet -->

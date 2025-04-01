@@ -49,19 +49,19 @@
             </Border>
 
             <!-- Contenu principal -->
-            <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <ScrollViewer x:Name="MainScrollViewer" VerticalScrollBarVisibility="Auto" PreviewMouseWheel="MainScrollViewer_PreviewMouseWheel">
                 <StackPanel>
                     <!-- Case à cocher pour activer/désactiver le multi-moniteur -->
                     <CheckBox Name="ChkMultiMonitor" Content="Activer le mode multi-moniteur" Margin="10"
-                     IsChecked="{Binding IsMultiMonitor, Mode=TwoWay}" />
+         IsChecked="{Binding IsMultiMonitor, Mode=TwoWay}" />
 
                     <!-- Liste des fichiers RDS -->
                     <ListView Name="FileList"
                     ItemsSource="{Binding FilteredFiles}"
                     SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
                     MouseDoubleClick="FileList_MouseDoubleClick"
-                    Background="Transparent" BorderThickness="0">
-
+                    Background="Transparent" BorderThickness="0"
+                    ScrollViewer.VerticalScrollBarVisibility="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
@@ -89,9 +89,11 @@
         <!-- Flèches de tri centrées verticalement -->
         <StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10">
             <Button Content="&#x2191;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40" 
-                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveUpFileCommand}"/>
+                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveUpFileCommand}"
+                    Click="MoveUpButton_Click"/>
             <Button Content="&#x2193;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40" 
-                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveDownFileCommand}"/>
+                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveDownFileCommand}"
+                    Click="MoveDownButton_Click"/>
         </StackPanel>
 
     </Grid>

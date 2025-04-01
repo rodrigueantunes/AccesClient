@@ -5,13 +5,14 @@
         public string Name { get; set; }
         public string Type { get; set; }
         public string FullPath { get; set; }
-        public string Client { get; set; } // Ajout de la propriété Client
+        public string Client { get; set; }
     }
 
     public enum FileType
     {
-        RDS,  // Bureau à distance
+        RDS,     // Bureau à distance
         VPN,
-        AnyDesk
+        AnyDesk,
+        Dossier  // Nouveau type pour les dossiers
     }
 }
