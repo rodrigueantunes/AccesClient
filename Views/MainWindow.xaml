@@ -13,6 +13,8 @@
 
     <Window.Resources>
         <conv:FileTypeToIconConverter x:Key="FileTypeToIconConverter"/>
+        <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+        <conv:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibilityConverter"/>
 
         <Style x:Key="RoundedButton" TargetType="Button">
             <Setter Property="Background" Value="#5DADE2"/>
@@ -30,21 +32,43 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Style pour les boutons de copie -->
+        <Style x:Key="CopyButton" TargetType="Button">
+            <Setter Property="Background" Value="#F8F9F9"/>
+            <Setter Property="BorderBrush" Value="#AEB6BF"/>
+            <Setter Property="BorderThickness" Value="1"/>
+            <Setter Property="Cursor" Value="Hand"/>
+            <Setter Property="Template">
+                <Setter.Value>
+                    <ControlTemplate TargetType="Button">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="3" 
+                                BorderThickness="{TemplateBinding BorderThickness}" 
+                                BorderBrush="{TemplateBinding BorderBrush}">
+                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                        </Border>
+                    </ControlTemplate>
+                </Setter.Value>
+            </Setter>
+        </Style>
     </Window.Resources>
 
     <Grid>
         <!-- Divise la fenêtre en 2 sections: Gauche et Droite -->
         <DockPanel>
-            <!-- Barre latérale gauche -->
             <Border DockPanel.Dock="Left" Background="#34495E" Padding="10" CornerRadius="8">
                 <StackPanel Width="220">
                     <TextBlock Text="Clients" FontSize="18" FontWeight="Bold" Foreground="White" Margin="5"/>
                     <ListBox ItemsSource="{Binding Clients}" DisplayMemberPath="Name"
-                             SelectedItem="{Binding SelectedClient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             Background="#D5DBDB" BorderThickness="0" Padding="5"/>
+                 SelectedItem="{Binding SelectedClient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+                 Background="#D5DBDB" BorderThickness="0" Padding="5"/>
 
                     <Button Content="Gérer les clients" Command="{Binding ManageClientsCommand}" 
-                            Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
+                Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
+                    <Button Content="Extranet" Command="{Binding OpenExtranetCommand}" 
+                Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
+                    <Button Content="Aide en ligne" Command="{Binding OpenOnlineHelpCommand}" 
+                Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
                 </StackPanel>
             </Border>
 
@@ -53,30 +77,80 @@
                 <StackPanel>
                     <!-- Case à cocher pour activer/désactiver le multi-moniteur -->
                     <CheckBox Name="ChkMultiMonitor" Content="Activer le mode multi-moniteur" Margin="10"
-         IsChecked="{Binding IsMultiMonitor, Mode=TwoWay}" />
+                              IsChecked="{Binding IsMultiMonitor, Mode=TwoWay}" />
 
                     <!-- Liste des fichiers RDS -->
                     <ListView Name="FileList"
-                    ItemsSource="{Binding FilteredFiles}"
-                    SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
-                    MouseDoubleClick="FileList_MouseDoubleClick"
-                    Background="Transparent" BorderThickness="0"
-                    ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                              ItemsSource="{Binding FilteredFiles}"
+                              SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
+                              MouseDoubleClick="FileList_MouseDoubleClick"
+                              Background="Transparent" BorderThickness="0"
+                              ScrollViewer.VerticalScrollBarVisibility="Disabled">
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
-                                    <StackPanel Orientation="Horizontal" Height="60" VerticalAlignment="Center">
-                                        <Border Background="#EAEDED" Padding="5" CornerRadius="8" Margin="5">
-                                            <Image Width="48" Height="48">
-                                                <Image.Source>
-                                                    <Binding Path="Type" Converter="{StaticResource FileTypeToIconConverter}"/>
-                                                </Image.Source>
-                                            </Image>
-                                        </Border>
+                                    <StackPanel>
+                                        <!-- Ligne principale avec icône, nom et type -->
+                                        <Grid Width="600">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="80"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
 
-                                        <TextBlock Text="{Binding Name}" VerticalAlignment="Center"
-                                                   FontSize="15" FontWeight="Bold" Foreground="#2C3E50"
-                                                   Margin="10,0,0,0"/>
+                                            <!-- Icône avec une taille plus large -->
+                                            <Border Grid.Column="0" Background="#EAEDED" Padding="5" CornerRadius="8" Margin="0,0,15,0" Width="70" Height="70">
+                                                <Image Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality">
+                                                    <Image.Source>
+                                                        <Binding Path="." Converter="{StaticResource FileTypeToIconConverter}"/>
+                                                    </Image.Source>
+                                                </Image>
+                                            </Border>
+
+                                            <!-- Nom -->
+                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" 
+                                                      FontSize="16" FontWeight="Bold" Foreground="#2C3E50"/>
+
+                                            <!-- Type -->
+                                            <TextBlock Grid.Column="2" Text="{Binding Type}" VerticalAlignment="Center" 
+                                                      FontSize="13" Foreground="#7F8C8D" Margin="10,0,0,0"/>
+                                        </Grid>
+
+                                        <!-- Section d'informations Windows pour AnyDesk uniquement -->
+                                        <Grid Visibility="{Binding Type, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=AnyDesk}" 
+                                              Margin="80,5,0,0">
+                                            <Grid.ColumnDefinitions>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="*"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                                <ColumnDefinition Width="Auto"/>
+                                            </Grid.ColumnDefinitions>
+
+                                            <!-- Utilisateur Windows -->
+                                            <StackPanel Grid.Column="0" Orientation="Horizontal" Visibility="{Binding WindowsUsername, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+                                                <TextBlock Text="Utilisateur Windows:" VerticalAlignment="Center" 
+                                                          FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+                                                <TextBlock Text="{Binding WindowsUsername}" VerticalAlignment="Center" 
+                                                          FontSize="12" Foreground="#34495E" Margin="5,0,5,0"/>
+                                                <Button Content="📋" Width="25" Height="25" Margin="2" 
+                                                        ToolTip="Copier le nom d'utilisateur" 
+                                                        Click="CopyWindowsUsername_Click"
+                                                        Tag="{Binding WindowsUsername}"
+                                                        Style="{StaticResource CopyButton}"/>
+                                            </StackPanel>
+
+                                            <!-- Mot de passe Windows -->
+                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="15,0,0,0" Visibility="{Binding WindowsPassword, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+                                                <TextBlock Text="Mot de passe Windows:" VerticalAlignment="Center" 
+                                                          FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+                                                <Button Content="📋" Width="25" Height="25" Margin="5,0,0,0" 
+                                                        ToolTip="Copier le mot de passe" 
+                                                        Click="CopyWindowsPassword_Click"
+                                                        Tag="{Binding}"
+                                                        Style="{StaticResource CopyButton}"/>
+                                            </StackPanel>
+                                        </Grid>
                                     </StackPanel>
                                 </Border>
                             </DataTemplate>
@@ -95,6 +169,5 @@
                     FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveDownFileCommand}"
                     Click="MoveDownButton_Click"/>
         </StackPanel>
-
     </Grid>
 </Window>

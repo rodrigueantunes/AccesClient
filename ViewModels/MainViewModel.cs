@@ -11,6 +11,7 @@ using AccesClientWPF.Commands;
 using System.Windows;
 using AccesClientWPF.Views;
 using AccesClientWPF.Helpers;
+using Microsoft.Win32;
 
 namespace AccesClientWPF.ViewModels
 {
@@ -168,12 +169,14 @@ namespace AccesClientWPF.ViewModels
                 case "Dossier":
                     OpenFolder(file.FullPath);
                     break;
+                case "Fichier":
+                    OpenFile(file.FullPath);
+                    break;
                 default:
                     MessageBox.Show($"Ouverture de {file.Type}: {file.Name}", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                     break;
             }
         }
-
         private void LaunchProgram(string path)
         {
             try
@@ -346,6 +349,30 @@ namespace AccesClientWPF.ViewModels
             }
         }
 
+        private void OpenFile(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = path,
+                        UseShellExecute = true
+                    };
+                    Process.Start(startInfo);
+                }
+                else
+                {
+                    MessageBox.Show($"Le fichier '{path}' n'existe pas.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de l'ouverture du fichier : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
         public void MoveUp()
         {
             var index = FilteredFiles.IndexOf(SelectedFile);
@@ -385,6 +412,504 @@ namespace AccesClientWPF.ViewModels
             // Sauvegarder la base de données complète
             SaveDatabase(db);
         }
+
+        private ICommand _openExtranetCommand;
+        public ICommand OpenExtranetCommand => _openExtranetCommand ??= new RelayCommand(_ => OpenExtranet());
+
+        private ICommand _openOnlineHelpCommand;
+        public ICommand OpenOnlineHelpCommand => _openOnlineHelpCommand ??= new RelayCommand(_ => OpenOnlineHelp());
+
+        private void OpenExtranet()
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://extranet.volume-software.com/",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Impossible d'ouvrir l'extranet : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private string FindDropboxPath()
+        {
+            try
+            {
+                // Liste des méthodes pour trouver le chemin Dropbox
+                Func<string>[] dropboxPathFinders = new Func<string>[]
+                {
+            // Méthode 1 : Recherche via la base de registre
+            () => {
+                try
+                {
+                    using (var key = Microsoft.Win32.Registry.CurrentUser.OpenSubKey(@"Software\Dropbox\InstallPath"))
+                    {
+                        return key?.GetValue("") as string;
+                    }
+                }
+                catch { return null; }
+            },
+
+            // Méthode 2 : Chemins par défaut connus
+            () => {
+                string[] defaultPaths = new[]
+                {
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.UserProfile), "Dropbox"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData), "Dropbox"),
+                    Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.MyDocuments), "Dropbox")
+                };
+
+                return defaultPaths.FirstOrDefault(Directory.Exists);
+            },
+
+            // Méthode 3 : Recherche dans les dossiers utilisateur
+            () => {
+                try
+                {
+                    string userProfile = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile);
+                    string parentFolder = Directory.GetParent(userProfile).FullName;
+
+                    return Directory.GetDirectories(parentFolder)
+                        .Select(dir => Path.Combine(dir, "Dropbox"))
+                        .FirstOrDefault(Directory.Exists);
+                }
+                catch { return null; }
+            }
+                };
+
+                // Essayer chaque méthode
+                foreach (var finder in dropboxPathFinders)
+                {
+                    string path = finder();
+                    if (!string.IsNullOrEmpty(path) && Directory.Exists(path))
+                    {
+                        return path;
+                    }
+                }
+
+                // Dernière tentative : demander à l'utilisateur
+                var dialog = new Microsoft.Win32.OpenFolderDialog
+                {
+                    Title = "Localiser le dossier Dropbox",
+                    InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.UserProfile)
+                };
+
+                if (dialog.ShowDialog() == true && Directory.Exists(dialog.FolderName))
+                {
+                    return dialog.FolderName;
+                }
+
+                return null;
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de la recherche du dossier Dropbox : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                return null;
+            }
+        }
+
+        private void OpenOnlineHelp()
+        {
+            try
+            {
+                // 1) Vérifier association .htm
+                string userChoice = Microsoft.Win32.Registry.GetValue(
+                    @"HKEY_CURRENT_USER\Software\Microsoft\Windows\CurrentVersion\Explorer\FileExts\.htm\UserChoice",
+                    "ProgId", null) as string ?? "";
+
+                if (string.IsNullOrEmpty(userChoice))
+                    userChoice = Microsoft.Win32.Registry.GetValue(@"HKEY_CLASSES_ROOT\.htm", "", null) as string ?? "";
+
+                string browserPath = Microsoft.Win32.Registry.GetValue($@"HKEY_CLASSES_ROOT\{userChoice}\shell\open\command", "", null) as string ?? "";
+
+                // Vérifie si c'est un navigateur connu
+                string[] knownBrowsers = { "chrome.exe", "msedge.exe", "firefox.exe", "iexplore.exe", "opera.exe", "seamonkey.exe", "brave.exe", "vivaldi.exe", "safari.exe", "maxthon.exe" };
+                bool associationIncorrecte = string.IsNullOrEmpty(browserPath) || !knownBrowsers.Any(b => browserPath.ToLower().Contains(b));
+
+                // 2) Récupérer le dossier Dropbox
+                string dropboxPath = FindDropboxPath();
+                if (string.IsNullOrEmpty(dropboxPath))
+                {
+                    MessageBox.Show("Impossible de localiser le dossier Dropbox. Veuillez sélectionner manuellement le dossier.",
+                        "Dossier Dropbox introuvable", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // 3) Chercher le fichier d'aide
+                string[] possibleFilenames = { "default.htm", "Default.htm", "defaut.htm", "Defaut.htm" };
+                string helpFilePath = possibleFilenames
+                    .Select(filename => Path.Combine(dropboxPath, "VoluHelp", filename))
+                    .FirstOrDefault(File.Exists);
+
+                if (helpFilePath == null)
+                {
+                    string helpFolder = Path.Combine(dropboxPath, "VoluHelp");
+                    if (!Directory.Exists(helpFolder))
+                    {
+                        MessageBox.Show($"Le dossier VoluHelp n'existe pas : {helpFolder}\n\n" +
+                                        $"Contenu du dossier Dropbox : {string.Join(", ", Directory.GetDirectories(dropboxPath))}",
+                                        "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                        return;
+                    }
+
+                    var filesInFolder = Directory.GetFiles(helpFolder);
+                    MessageBox.Show($"Aucun fichier d'aide trouvé. Fichiers présents :\n{string.Join("\n", filesInFolder)}",
+                        "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // 4) Construire l'URL (file:// + paramètres)
+                string helpFileParams = "?rhhlterm=qualite%20client&rhsyns=%20#t=Content%2FAccueil%2FAccueil.htm&rhhlterm=Volupack%20principe%20de%20base&rhsyns=%20&ux=search";
+                string fullUrl = new Uri(helpFilePath).AbsoluteUri + helpFileParams;
+
+                // 5) Si association incorrecte → proposer la fenêtre pour choisir un navigateur
+                if (associationIncorrecte)
+                {
+                    var installedBrowsers = GetInstalledBrowsers();
+                    if (installedBrowsers.Count == 0)
+                    {
+                        MessageBox.Show("Aucun navigateur reconnu automatiquement.\n" +
+                                        "Veuillez en sélectionner un manuellement.",
+                                        "Navigateur introuvable", MessageBoxButton.OK, MessageBoxImage.Warning);
+
+                        // Ouvre la fenêtre standard pour .exe (fallback)
+                        var openDlg = new Microsoft.Win32.OpenFileDialog
+                        {
+                            Title = "Sélectionnez le navigateur (.exe)",
+                            Filter = "Fichiers EXE|*.exe",
+                            InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
+                        };
+                        if (openDlg.ShowDialog() == true)
+                        {
+                            // Ouvrir l'aide pour cette session uniquement (pas de modif Registre)
+                            Process.Start(openDlg.FileName, fullUrl);
+                        }
+                        return;
+                    }
+
+                    // Sinon, ouvrir notre fenêtre de choix
+                    var chooseWin = new Views.ChooseBrowserWindow(installedBrowsers);
+                    bool? dialogResult = chooseWin.ShowDialog();
+                    if (dialogResult == true)
+                    {
+                        // L'utilisateur a choisi un navigateur
+                        string chosenExe = chooseWin.SelectedBrowserExe;
+
+                        if (chooseWin.JustOpenOnce)
+                        {
+                            // Ouvre juste 1 fois avec ce navigateur, sans changer .htm
+                            Process.Start(chosenExe, fullUrl);
+                        }
+                        else if (chooseWin.SetAsDefault)
+                        {
+                            // Tente de changer l'association en Registre
+                            bool success = ForceAssociateHtmWithExe(chosenExe);
+                            if (!success)
+                            {
+                                MessageBox.Show(
+                                    "Impossible de changer l'association .htm.\n" +
+                                    "Veuillez exécuter l'application en tant qu'administrateur ou modifier manuellement via Paramètres Windows.",
+                                    "Échec",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Error
+                                );
+                            }
+                            else
+                            {
+                                // Succès
+                                MessageBox.Show(
+                                    "Association mise à jour avec succès !\n" +
+                                    "Relancez l'application ou essayez à nouveau pour ouvrir l'aide.",
+                                    "Succès",
+                                    MessageBoxButton.OK,
+                                    MessageBoxImage.Information
+                                );
+                            }
+                        }
+                    }
+                    return;
+                }
+
+                // 6) Sinon association correcte → on ouvre
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "cmd",
+                    Arguments = $"/c start \"\" \"{fullUrl}\"",
+                    UseShellExecute = false,
+                    CreateNoWindow = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Impossible d'ouvrir l'aide en ligne : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        /// <summary>
+        /// Détecte quelques chemins courants pour les navigateurs (Chrome, Firefox, Opera, Edge, etc.)
+        /// </summary>
+        /// <summary>
+        /// Récupère la liste la plus exhaustive possible de navigateurs installés
+        /// en combinant :
+        /// 1) StartMenuInternet du Registre (HKLM + HKCU)
+        /// 2) Dossiers Program Files
+        /// 3) Dossiers AppData/Local/Programs (par ex. Opera GX)
+        /// </summary>
+        private List<string> GetInstalledBrowsers()
+        {
+            var foundPaths = new HashSet<string>(StringComparer.OrdinalIgnoreCase);
+
+            // 1) Parcours du registre (StartMenuInternet)
+            foundPaths.UnionWith(GetBrowsersFromRegistry(
+                @"HKEY_LOCAL_MACHINE\Software\Clients\StartMenuInternet"));
+            foundPaths.UnionWith(GetBrowsersFromRegistry(
+                @"HKEY_LOCAL_MACHINE\SOFTWARE\WOW6432Node\Clients\StartMenuInternet"));
+            foundPaths.UnionWith(GetBrowsersFromRegistry(
+                @"HKEY_CURRENT_USER\SOFTWARE\Clients\StartMenuInternet"));
+
+            // 2) Recherche dans Program Files / Program Files (x86)
+            foundPaths.UnionWith(FindBrowsersInCommonPaths());
+
+            // 3) Recherche dans AppData/Local/Programs (utile pour Opera GX, etc.)
+            foundPaths.UnionWith(FindBrowsersInLocalAppData());
+
+            // 4) (Optionnel) Scanne entièrement le dossier Program Files
+            //    pour trouver tout .exe contenant \"chrome\", \"opera\", etc. 
+            
+            foundPaths.UnionWith(ScanProgramFilesForPotentialBrowsers(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)));
+            foundPaths.UnionWith(ScanProgramFilesForPotentialBrowsers(
+                Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)));
+            
+
+            // Ne garder que ceux qui existent vraiment
+            return foundPaths.Where(File.Exists).ToList();
+        }
+
+
+        private IEnumerable<string> GetBrowsersFromRegistry(string baseKeyPath)
+        {
+            var result = new List<string>();
+
+            ParseHiveAndSubPath(baseKeyPath, out string hiveName, out string subPath);
+            if (!Enum.TryParse(hiveName, out RegistryHive hive))
+                yield break; // clé non reconnue
+
+            // On utilise RegistryView.Default ou RegistryView.Registry64, au choix
+            using var root = RegistryKey.OpenBaseKey(hive, RegistryView.Default);
+            using var mainKey = root.OpenSubKey(subPath);
+            if (mainKey == null)
+                yield break;
+
+            foreach (var browserName in mainKey.GetSubKeyNames())
+            {
+                using var browserKey = mainKey.OpenSubKey(browserName);
+                if (browserKey == null) continue;
+
+                using var shellKey = browserKey.OpenSubKey("shell");
+                using var openKey = shellKey?.OpenSubKey("open");
+                using var commandKey = openKey?.OpenSubKey("command");
+                if (commandKey == null) continue;
+
+                var command = commandKey.GetValue(null) as string;
+                if (string.IsNullOrEmpty(command)) continue;
+
+                var exePath = ExtractExePath(command);
+                if (!string.IsNullOrEmpty(exePath))
+                    result.Add(exePath);
+            }
+
+            foreach (var path in result)
+                yield return path;
+        }
+
+        private string ExtractExePath(string command)
+        {
+            command = command.Trim();
+
+            if (command.StartsWith("\""))
+            {
+                // Cherche la 2e occurrence de \"
+                int secondQuote = command.IndexOf('\"', 1);
+                if (secondQuote > 1)
+                {
+                    return command.Substring(1, secondQuote - 1);
+                }
+            }
+            else
+            {
+                var parts = command.Split(' ');
+                if (parts.Length > 0)
+                    return parts[0];
+            }
+            return command; // fallback
+        }
+
+
+        /// <summary>
+        /// Cherche les navigateurs dans quelques chemins classiques sur le disque
+        /// (Program Files, Program Files (x86), etc.)
+        /// </summary>
+        private IEnumerable<string> FindBrowsersInCommonPaths()
+        {
+            var found = new List<string>();
+
+            var knownPaths = new[]
+            {
+        // Chrome
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Google\\Chrome\\Application\\chrome.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Google\\Chrome\\Application\\chrome.exe"),
+
+        // Firefox
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Mozilla Firefox\\firefox.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Mozilla Firefox\\firefox.exe"),
+
+        // Opera
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Opera\\launcher.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Opera\\launcher.exe"),
+
+        // Opera GX (souvent dans Program Files, parfois ailleurs)
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Opera GX\\launcher.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Opera GX\\launcher.exe"),
+
+        // Edge
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Microsoft\\Edge\\Application\\msedge.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Microsoft\\Edge\\Application\\msedge.exe"),
+
+        // Brave
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "BraveSoftware\\Brave-Browser\\Application\\brave.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "BraveSoftware\\Brave-Browser\\Application\\brave.exe"),
+
+        // Vivaldi
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Vivaldi\\Application\\vivaldi.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Vivaldi\\Application\\vivaldi.exe"),
+
+        // SeaMonkey
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "SeaMonkey\\seamonkey.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "SeaMonkey\\seamonkey.exe"),
+
+        // Yandex
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles), "Yandex\\YandexBrowser\\browser.exe"),
+        Path.Combine(Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86), "Yandex\\YandexBrowser\\browser.exe"),
+    };
+
+            foreach (var path in knownPaths)
+            {
+                if (File.Exists(path))
+                    found.Add(path);
+            }
+
+            return found;
+        }
+
+        private IEnumerable<string> FindBrowsersInLocalAppData()
+        {
+            var results = new List<string>();
+
+            // 1) Chemins typiques (Opera GX, Opera, etc.)
+            var userLocal = Environment.GetFolderPath(Environment.SpecialFolder.LocalApplicationData);
+
+            // Quelques chemins spécifiques
+            var localPaths = new[]
+            {
+        Path.Combine(userLocal, "Programs", "Opera GX", "launcher.exe"),
+        Path.Combine(userLocal, "Programs", "Opera", "launcher.exe"),
+        // etc. Ajoute d'autres si tu sais qu'ils se mettent dans Programs\\Nom
+    };
+
+            foreach (var path in localPaths)
+            {
+                if (File.Exists(path))
+                    results.Add(path);
+            }
+
+            // 2) (Optionnel) On pourrait aussi scanner tout \"AppData\\Local\\Programs\" 
+            //    pour trouver d'éventuels .exe contenant \"opera\", \"browser\", etc.
+            //    Mais c'est potentiellement lourd et lent.
+
+            return results;
+        }
+
+        private IEnumerable<string> ScanProgramFilesForPotentialBrowsers(string folder)
+        {
+            if (string.IsNullOrEmpty(folder) || !Directory.Exists(folder))
+                yield break;
+
+            var keywords = new[] { "chrome", "opera", "browser", "firefox", "brave",
+                           "vivaldi", "seamonkey", "yandex", "palemoon", "waterfox" };
+
+            var foundList = new List<string>();
+            try
+            {
+                var exeFiles = Directory.EnumerateFiles(folder, "*.exe", SearchOption.AllDirectories);
+                foreach (var file in exeFiles)
+                {
+                    var name = Path.GetFileName(file).ToLowerInvariant();
+                    if (keywords.Any(k => name.Contains(k)))
+                        foundList.Add(file);
+                }
+            }
+            catch
+            {
+                // Accès refusé ? On ignore
+            }
+
+            foreach (var item in foundList)
+                yield return item;
+        }
+
+        private void ParseHiveAndSubPath(string fullPath, out string hive, out string subPath)
+        {
+            int idx = fullPath.IndexOf('\\');
+            if (idx < 0)
+            {
+                hive = fullPath;
+                subPath = "";
+                return;
+            }
+            hive = fullPath.Substring(0, idx);
+            subPath = fullPath.Substring(idx + 1);
+        }
+
+        private bool ForceAssociateHtmWithExe(string browserExe)
+        {
+            try
+            {
+                const string progId = "MonNavigateurPersoHTML";
+
+                // Associer .htm -> ce progId
+                using (var htmKey = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(".htm"))
+                {
+                    htmKey?.SetValue("", progId, Microsoft.Win32.RegistryValueKind.String);
+                }
+
+                // Créer ou MAJ la clé HKEY_CLASSES_ROOT\\MonNavigateurPersoHTML\\shell\\open\\command
+                string commandKeyPath = $"{progId}\\shell\\open\\command";
+                using (var cmdKey = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(commandKeyPath))
+                {
+                    string commandValue = $"\"{browserExe}\" \"%1\"";
+                    cmdKey?.SetValue("", commandValue, Microsoft.Win32.RegistryValueKind.String);
+                }
+
+                // Nom descriptif
+                using (var progIdKey = Microsoft.Win32.Registry.ClassesRoot.CreateSubKey(progId))
+                {
+                    progIdKey?.SetValue("", "HTML Document (Custom)", Microsoft.Win32.RegistryValueKind.String);
+                }
+
+                return true;
+            }
+            catch
+            {
+                return false;
+            }
+        }
+
+
 
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
     }

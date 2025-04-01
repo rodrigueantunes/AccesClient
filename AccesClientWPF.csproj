@@ -6,19 +6,22 @@
 		<Nullable>enable</Nullable>
 		<ImplicitUsings>enable</ImplicitUsings>
 		<UseWPF>true</UseWPF>
+		<!-- Empêche la détection automatique des .xaml -->
 		<EnableDefaultPageItems>false</EnableDefaultPageItems>
+
 		<ApplicationIcon>DALL·E-2025-02-22-14.09.08-A-modern_-professional-icon-for-a-client-access-management-application.ico</ApplicationIcon>
 	</PropertyGroup>
 
 	<ItemGroup>
-	  <None Remove="Resources\dossier.png" />
+		<None Remove="Resources\\dossier.png" />
+		<None Remove="Resources\\fichier.png" />
 	</ItemGroup>
 
 	<!-- Icône de l'application -->
 	<ItemGroup>
 		<Content Include="DALL·E-2025-02-22-14.09.08-A-modern_-professional-icon-for-a-client-access-management-application.ico" />
-		<Resource Include="Resources\dossier.png">
-		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		<Resource Include="Resources\\dossier.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Resource>
 	</ItemGroup>
 
@@ -27,55 +30,60 @@
 		<PackageReference Include="Newtonsoft.Json" Version="13.0.3" />
 	</ItemGroup>
 
-	<!-- Fichiers XAML -->
+	<!-- Déclaration explicite de tous les fichiers XAML de type Page -->
 	<ItemGroup>
-		<Page Include="Views\MainWindow.xaml" />
-		<Page Include="Views\RdsAccountWindow.xaml" />
-		<Page Include="Views\EditRdsAccountWindow.xaml" />
-		<Page Include="Views\ClientManagementWindow.xaml" />
-		<Page Include="Views\AddEntryWindow.xaml" />
-		<Page Include="Views\ExistingElementsWindow.xaml" />
-		
+		<Page Include="Views\\MainWindow.xaml" />
+		<Page Include="Views\\RdsAccountWindow.xaml" />
+		<Page Include="Views\\EditRdsAccountWindow.xaml" />
+		<Page Include="Views\\ClientManagementWindow.xaml" />
+		<Page Include="Views\\AddEntryWindow.xaml" />
+		<Page Include="Views\\ExistingElementsWindow.xaml" />
+		<!-- Ajout de ChooseBrowserWindow.xaml en tant que Page WPF -->
+		<Page Include="Views\\ChooseBrowserWindow.xaml" />
 	</ItemGroup>
-
 
 	<!-- Ressources Images -->
 	<ItemGroup>
-		<Resource Include="Resources\anydesk.png">
+		<Resource Include="Resources\\anydesk.png">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Resource>
-		<Resource Include="Resources\default.png">
+		<Resource Include="Resources\\default.png">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Resource>
-		<Resource Include="Resources\remote_desktop.png">
+		<Resource Include="Resources\\fichier.png">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Resource>
-		<Resource Include="Resources\vpn.png">
+		<Resource Include="Resources\\remote_desktop.png">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Resource>
+		<Resource Include="Resources\\vpn.png">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Resource>
 	</ItemGroup>
 
-
 	<!-- Paramètres et Ressources -->
 	<ItemGroup>
-		<Compile Update="Properties\Resources.Designer.cs">
+		<Compile Update="Properties\\Resources.Designer.cs">
 			<DesignTime>True</DesignTime>
 			<AutoGen>True</AutoGen>
 			<DependentUpon>Resources.resx</DependentUpon>
 		</Compile>
-		<Compile Update="Properties\Settings.Designer.cs">
+		<Compile Update="Properties\\Settings.Designer.cs">
 			<DesignTimeSharedInput>True</DesignTimeSharedInput>
 			<AutoGen>True</AutoGen>
 			<DependentUpon>Settings.settings</DependentUpon>
 		</Compile>
-		<EmbeddedResource Update="Properties\Resources.resx">
+		<EmbeddedResource Update="Properties\\Resources.resx">
 			<Generator>ResXFileCodeGenerator</Generator>
 			<LastGenOutput>Resources.Designer.cs</LastGenOutput>
 		</EmbeddedResource>
-		<None Update="Properties\Settings.settings">
+		<None Update="Properties\\Settings.settings">
 			<Generator>SettingsSingleFileGenerator</Generator>
 			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
 		</None>
+
+		<!-- Supprime la déclaration de type None pour ChooseBrowserWindow.xaml si elle existait -->
+		<!-- On la remplace par l'entrée <Page Include=\"Views\\ChooseBrowserWindow.xaml\" /> ci-dessus -->
 	</ItemGroup>
 
 </Project>

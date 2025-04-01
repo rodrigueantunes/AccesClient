@@ -10,6 +10,9 @@
     <Compile Update="Views\AddEntryWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="Views\ChooseBrowserWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
     <Compile Update="Views\ClientManagementWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
@@ -25,6 +28,9 @@
   </ItemGroup>
   <ItemGroup>
     <None Update="Views\AddEntryWindow.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Views\ChooseBrowserWindow.xaml">
       <SubType>Designer</SubType>
     </None>
     <None Update="Views\ClientManagementWindow.xaml">

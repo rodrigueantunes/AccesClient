@@ -8,6 +8,7 @@ using Microsoft.Win32;
 using AccesClientWPF.Models;
 using Newtonsoft.Json;
 using AccesClientWPF.Helpers;
+using System.Windows.Media.Imaging;
 
 namespace AccesClientWPF.Views
 {
@@ -47,6 +48,10 @@ namespace AccesClientWPF.Views
                 {
                     TxtAnydeskId.Text = credentials.ElementAtOrDefault(0);
                     TxtAnydeskPassword.Password = string.Empty;
+
+                    // Charger les informations Windows
+                    TxtWindowsUsername.Text = _editingFile.WindowsUsername ?? string.Empty;
+                    TxtWindowsPassword.Password = string.Empty;
                 }
                 else if (_editingFile.Type == "VPN")
                 {
@@ -55,6 +60,22 @@ namespace AccesClientWPF.Views
                 else if (_editingFile.Type == "Dossier")
                 {
                     TxtFolderPath.Text = _editingFile.FullPath;
+                }
+                else if (_editingFile.Type == "Fichier")
+                {
+                    TxtFilePath.Text = _editingFile.FullPath;
+                    TxtIconPath.Text = _editingFile.CustomIconPath ?? string.Empty;
+
+                    if (!string.IsNullOrEmpty(_editingFile.CustomIconPath) && File.Exists(_editingFile.CustomIconPath))
+                    {
+                        try
+                        {
+                            BitmapImage bitmap = new BitmapImage(new Uri(_editingFile.CustomIconPath));
+                            IconPreview.Source = bitmap;
+                            IconPreview.Visibility = Visibility.Visible;
+                        }
+                        catch { }
+                    }
                 }
             }
         }
@@ -66,6 +87,7 @@ namespace AccesClientWPF.Views
             PanelAnyDesk.Visibility = selectedType == "AnyDesk" ? Visibility.Visible : Visibility.Collapsed;
             PanelVPN.Visibility = selectedType == "VPN" ? Visibility.Visible : Visibility.Collapsed;
             PanelFolder.Visibility = selectedType == "Dossier" ? Visibility.Visible : Visibility.Collapsed;
+            PanelFile.Visibility = selectedType == "Fichier" ? Visibility.Visible : Visibility.Collapsed;
         }
 
         private void LoadFiles()
@@ -88,6 +110,9 @@ namespace AccesClientWPF.Views
 
             var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag.ToString();
             string fullPath = string.Empty;
+            string customIconPath = string.Empty;
+            string windowsUsername = string.Empty;
+            string windowsPassword = string.Empty;
 
             if (selectedType == "RDS")
             {
@@ -98,6 +123,10 @@ namespace AccesClientWPF.Views
             {
                 string encryptedPassword = EncryptionHelper.Encrypt(TxtAnydeskPassword.Password);
                 fullPath = $"{TxtAnydeskId.Text}:{encryptedPassword}";
+
+                // Sauvegarder les informations Windows
+                windowsUsername = TxtWindowsUsername.Text;
+                windowsPassword = EncryptionHelper.Encrypt(TxtWindowsPassword.Password);
             }
             else if (selectedType == "VPN")
             {
@@ -107,13 +136,21 @@ namespace AccesClientWPF.Views
             {
                 fullPath = TxtFolderPath.Text;
             }
+            else if (selectedType == "Fichier")
+            {
+                fullPath = TxtFilePath.Text;
+                customIconPath = TxtIconPath.Text;
+            }
 
             var newEntry = new FileModel
             {
                 Name = TxtName.Text,
                 Type = selectedType,
                 FullPath = fullPath,
-                Client = ((ClientModel)CmbClient.SelectedItem).Name
+                Client = ((ClientModel)CmbClient.SelectedItem).Name,
+                CustomIconPath = customIconPath,
+                WindowsUsername = windowsUsername,
+                WindowsPassword = windowsPassword
             };
 
             if (_editingFile != null && _files.Contains(_editingFile))
@@ -151,6 +188,46 @@ namespace AccesClientWPF.Views
             if (openFileDialog.ShowDialog() == true)
             {
                 TxtVpnPath.Text = openFileDialog.FileName;
+            }
+        }
+
+        private void BrowseFile_Click(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Title = "Sélectionnez un fichier",
+                Filter = "Tous les fichiers (*.*)|*.*"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                TxtFilePath.Text = openFileDialog.FileName;
+            }
+        }
+
+        private void BrowseIcon_Click(object sender, RoutedEventArgs e)
+        {
+            var openFileDialog = new OpenFileDialog
+            {
+                Title = "Sélectionnez une icône",
+                Filter = "Fichiers image (*.png;*.jpg;*.jpeg;*.bmp;*.gif)|*.png;*.jpg;*.jpeg;*.bmp;*.gif"
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                TxtIconPath.Text = openFileDialog.FileName;
+
+                // Afficher l'aperçu de l'icône
+                try
+                {
+                    BitmapImage bitmap = new BitmapImage(new Uri(openFileDialog.FileName));
+                    IconPreview.Source = bitmap;
+                    IconPreview.Visibility = Visibility.Visible;
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Erreur lors du chargement de l'image : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
             }
         }
 
