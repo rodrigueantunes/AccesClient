@@ -47,11 +47,15 @@ namespace AccesClientWPF.Views
                 else if (_editingFile.Type == "AnyDesk")
                 {
                     TxtAnydeskId.Text = credentials.ElementAtOrDefault(0);
-                    TxtAnydeskPassword.Password = string.Empty;
+                    TxtAnydeskPassword.Password = string.Empty; // Toujours vide
 
                     // Charger les informations Windows
                     TxtWindowsUsername.Text = _editingFile.WindowsUsername ?? string.Empty;
-                    TxtWindowsPassword.Password = string.Empty;
+                    // Ne pas effacer le mot de passe Windows si présent
+                    if (!string.IsNullOrEmpty(_editingFile.WindowsPassword))
+                    {
+                        TxtWindowsPassword.Password = EncryptionHelper.Decrypt(_editingFile.WindowsPassword);
+                    }
                 }
                 else if (_editingFile.Type == "VPN")
                 {
@@ -126,7 +130,16 @@ namespace AccesClientWPF.Views
 
                 // Sauvegarder les informations Windows
                 windowsUsername = TxtWindowsUsername.Text;
-                windowsPassword = EncryptionHelper.Encrypt(TxtWindowsPassword.Password);
+                // Si un mot de passe Windows est entré, l'encrypter
+                if (!string.IsNullOrEmpty(TxtWindowsPassword.Password))
+                {
+                    windowsPassword = EncryptionHelper.Encrypt(TxtWindowsPassword.Password);
+                }
+                // Si aucun mot de passe n'est entré mais qu'on édite, conserver l'ancien
+                else if (_editingFile != null && !string.IsNullOrEmpty(_editingFile.WindowsPassword))
+                {
+                    windowsPassword = _editingFile.WindowsPassword;
+                }
             }
             else if (selectedType == "VPN")
             {

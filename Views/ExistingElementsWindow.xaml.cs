@@ -117,7 +117,10 @@ namespace AccesClientWPF.Views
                 Name = file.Name,
                 Type = file.Type,
                 FullPath = fullPath,
-                Client = file.Client
+                Client = file.Client,
+                CustomIconPath = file.CustomIconPath,
+                WindowsUsername = file.WindowsUsername,
+                WindowsPassword = file.WindowsPassword
             };
         }
 

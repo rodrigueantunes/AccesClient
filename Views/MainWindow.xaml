@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client" Height="600" Width="900"
+        Title="Accès Client 1.1.0" Height="600" Width="1000"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
 
@@ -15,6 +15,8 @@
         <conv:FileTypeToIconConverter x:Key="FileTypeToIconConverter"/>
         <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <conv:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibilityConverter"/>
+        <conv:DecryptPasswordConverter x:Key="DecryptPasswordConverter"/>
+        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
         <Style x:Key="RoundedButton" TargetType="Button">
             <Setter Property="Background" Value="#5DADE2"/>
@@ -51,6 +53,13 @@
                 </Setter.Value>
             </Setter>
         </Style>
+
+        <!-- Style pour les éléments du menu contextuel -->
+        <Style x:Key="ContextMenuItemStyle" TargetType="MenuItem">
+            <Setter Property="Padding" Value="8,4"/>
+            <Setter Property="FontSize" Value="13"/>
+        </Style>
+
     </Window.Resources>
 
     <Grid>
@@ -73,19 +82,43 @@
             </Border>
 
             <!-- Contenu principal -->
+            <!-- Contenu principal -->
             <ScrollViewer x:Name="MainScrollViewer" VerticalScrollBarVisibility="Auto" PreviewMouseWheel="MainScrollViewer_PreviewMouseWheel">
                 <StackPanel>
-                    <!-- Case à cocher pour activer/désactiver le multi-moniteur -->
-                    <CheckBox Name="ChkMultiMonitor" Content="Activer le mode multi-moniteur" Margin="10"
-                              IsChecked="{Binding IsMultiMonitor, Mode=TwoWay}" />
+                    <!-- Options en haut -->
+                    <StackPanel Orientation="Horizontal" Margin="10">
+                        <CheckBox Name="ChkMultiMonitor" Content="Activer le mode multi-moniteur" Margin="0,0,20,0" 
+                      IsChecked="{Binding IsMultiMonitor, Mode=TwoWay}" />
+                        <CheckBox Name="ChkShowCredentials" Content="Afficher les identifiants" 
+                      IsChecked="{Binding ShowCredentials, Mode=TwoWay}" />
+                    </StackPanel>
 
                     <!-- Liste des fichiers RDS -->
                     <ListView Name="FileList"
-                              ItemsSource="{Binding FilteredFiles}"
-                              SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
-                              MouseDoubleClick="FileList_MouseDoubleClick"
-                              Background="Transparent" BorderThickness="0"
-                              ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                            ItemsSource="{Binding FilteredFiles}"
+                            SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
+                            MouseDoubleClick="FileList_MouseDoubleClick"
+                            Background="Transparent" BorderThickness="0"
+                            ScrollViewer.VerticalScrollBarVisibility="Disabled">
+                        <ListView.ContextMenu>
+                            <ContextMenu>
+                                <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Fill="#2ECC71" Stretch="Uniform" Width="16" Height="16"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Fill="#E74C3C" Stretch="Uniform" Width="16" Height="16"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </ListView.ContextMenu>
                         <ListView.ItemTemplate>
                             <DataTemplate>
                                 <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
@@ -109,16 +142,16 @@
 
                                             <!-- Nom -->
                                             <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center" 
-                                                      FontSize="16" FontWeight="Bold" Foreground="#2C3E50"/>
+                                          FontSize="16" FontWeight="Bold" Foreground="#2C3E50"/>
 
                                             <!-- Type -->
                                             <TextBlock Grid.Column="2" Text="{Binding Type}" VerticalAlignment="Center" 
-                                                      FontSize="13" Foreground="#7F8C8D" Margin="10,0,0,0"/>
+                                          FontSize="13" Foreground="#7F8C8D" Margin="10,0,0,0"/>
                                         </Grid>
 
                                         <!-- Section d'informations Windows pour AnyDesk uniquement -->
                                         <Grid Visibility="{Binding Type, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=AnyDesk}" 
-                                              Margin="80,5,0,0">
+                                  Margin="80,5,0,0">
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="Auto"/>
                                                 <ColumnDefinition Width="*"/>
@@ -130,20 +163,26 @@
                                             <!-- Utilisateur Windows -->
                                             <StackPanel Grid.Column="0" Orientation="Horizontal" Visibility="{Binding WindowsUsername, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
                                                 <TextBlock Text="Utilisateur Windows:" VerticalAlignment="Center" 
-                                                          FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+                                                FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
                                                 <TextBlock Text="{Binding WindowsUsername}" VerticalAlignment="Center" 
-                                                          FontSize="12" Foreground="#34495E" Margin="5,0,5,0"/>
+                                                FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
+                                                Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}" />
                                                 <Button Content="📋" Width="25" Height="25" Margin="2" 
-                                                        ToolTip="Copier le nom d'utilisateur" 
-                                                        Click="CopyWindowsUsername_Click"
-                                                        Tag="{Binding WindowsUsername}"
-                                                        Style="{StaticResource CopyButton}"/>
+                                            ToolTip="Copier le nom d'utilisateur" 
+                                            Click="CopyWindowsUsername_Click"
+                                            Tag="{Binding WindowsUsername}"
+                                            Style="{StaticResource CopyButton}"/>
                                             </StackPanel>
 
                                             <!-- Mot de passe Windows -->
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="15,0,0,0" Visibility="{Binding WindowsPassword, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
                                                 <TextBlock Text="Mot de passe Windows:" VerticalAlignment="Center" 
-                                                          FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+                                                           FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+                                                <TextBlock VerticalAlignment="Center" 
+                                                           FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
+                                                           Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                <Run Text="{Binding WindowsPassword, Converter={StaticResource DecryptPasswordConverter}, Mode=OneWay}"/>
+                                                </TextBlock>
                                                 <Button Content="📋" Width="25" Height="25" Margin="5,0,0,0" 
                                                         ToolTip="Copier le mot de passe" 
                                                         Click="CopyWindowsPassword_Click"
@@ -163,11 +202,10 @@
         <!-- Flèches de tri centrées verticalement -->
         <StackPanel Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10">
             <Button Content="&#x2191;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40" 
-                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveUpFileCommand}"
-                    Click="MoveUpButton_Click"/>
+                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveUpFileCommand}" Margin="0,0,10,0"/>
+
             <Button Content="&#x2193;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40" 
-                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveDownFileCommand}"
-                    Click="MoveDownButton_Click"/>
+                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveDownFileCommand}" Margin="0,0,10,0"/>
         </StackPanel>
     </Grid>
 </Window>

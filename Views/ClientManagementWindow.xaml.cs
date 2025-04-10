@@ -1,8 +1,10 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Media;
 using AccesClientWPF.Models;
 using Newtonsoft.Json;
 
@@ -14,12 +16,73 @@ namespace AccesClientWPF.Views
         private ObservableCollection<FileModel> _files;
         private readonly string _jsonFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "database.json");
 
+        // Variable pour le tri
+        private bool _isAscendingSort = true;
+
         public ClientManagementWindow(ObservableCollection<ClientModel> clients)
         {
             InitializeComponent();
             _clients = clients ?? new ObservableCollection<ClientModel>();
             LstClients.ItemsSource = _clients;
             LoadFiles();
+        }
+
+        private void SortClients_Click(object sender, RoutedEventArgs e)
+        {
+            // Inverser le mode de tri
+            _isAscendingSort = !_isAscendingSort;
+
+            // Mettre à jour l'apparence du bouton
+            if (_isAscendingSort)
+            {
+                TxtSortLabel.Text = "Trier A-Z";
+                // Flèche vers le bas
+                SortIcon.Data = Geometry.Parse("M7,21L12,17L17,21V3H7V21Z");
+            }
+            else
+            {
+                TxtSortLabel.Text = "Trier Z-A";
+                // Flèche vers le haut
+                SortIcon.Data = Geometry.Parse("M7,3L12,7L17,3V21H7V3Z");
+            }
+
+            // Effectuer le tri
+            SortClientsList();
+        }
+
+        private void SortClientsList()
+        {
+            var selectedClient = LstClients.SelectedItem as ClientModel;
+
+            // Créer une liste temporaire pour le tri
+            var sortedList = new List<ClientModel>(_clients);
+
+            if (_isAscendingSort)
+            {
+                // Tri ascendant (A-Z)
+                sortedList.Sort((x, y) => string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase));
+            }
+            else
+            {
+                // Tri descendant (Z-A)
+                sortedList.Sort((x, y) => string.Compare(y.Name, x.Name, StringComparison.OrdinalIgnoreCase));
+            }
+
+            // Vider et remplir la collection avec les éléments triés
+            _clients.Clear();
+            foreach (var client in sortedList)
+            {
+                _clients.Add(client);
+            }
+
+            // Restaurer la sélection si possible
+            if (selectedClient != null)
+            {
+                LstClients.SelectedItem = _clients.FirstOrDefault(c => c.Name == selectedClient.Name);
+            }
+
+            // Sauvegarder les changements
+            SaveData();
         }
 
         private void LoadFiles()
@@ -186,6 +249,5 @@ namespace AccesClientWPF.Views
                 MessageBox.Show("Veuillez sélectionner un client à déplacer.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
-
     }
 }

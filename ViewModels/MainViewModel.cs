@@ -68,6 +68,20 @@ namespace AccesClientWPF.ViewModels
 
         public event PropertyChangedEventHandler PropertyChanged;
 
+        private bool _showCredentials;
+        public bool ShowCredentials
+        {
+            get => _showCredentials;
+            set
+            {
+                if (_showCredentials != value)
+                {
+                    _showCredentials = value;
+                    OnPropertyChanged(nameof(ShowCredentials));
+                }
+            }
+        }
+
         public MainViewModel()
         {
             ManageJsonCommand = new RelayCommand(OpenRdsAccountWindow);
@@ -95,7 +109,7 @@ namespace AccesClientWPF.ViewModels
             OnPropertyChanged(nameof(Clients));
         }
 
-        private Models.DatabaseModel LoadDatabase()
+        public Models.DatabaseModel LoadDatabase()
         {
             if (!File.Exists(_jsonFilePath))
                 return new Models.DatabaseModel();
@@ -104,7 +118,7 @@ namespace AccesClientWPF.ViewModels
             return JsonConvert.DeserializeObject<Models.DatabaseModel>(json) ?? new Models.DatabaseModel();
         }
 
-        private void SaveDatabase(Models.DatabaseModel database)
+        public void SaveDatabase(Models.DatabaseModel database)
         {
             var json = JsonConvert.SerializeObject(database, Formatting.Indented);
             File.WriteAllText(_jsonFilePath, json);
@@ -224,81 +238,255 @@ namespace AccesClientWPF.ViewModels
 
         private void ConnectToRemoteDesktop(FileModel file)
         {
-            var credentials = file.FullPath.Split(':');
-            if (credentials.Length < 3)
-            {
-                MessageBox.Show("Les informations de connexion RDS sont incomplètes.");
-                return;
-            }
-
-            string ipDns = credentials[0];
-            string username = credentials[1];
-            string encryptedPassword = credentials[2];
-            string password = EncryptionHelper.Decrypt(encryptedPassword);
-            string args = $"/v:{ipDns} {(IsMultiMonitor ? "/multimon" : "/f")}";
-
-            // Ajout des informations d'identification
             try
             {
-                Process.Start("cmd.exe", $"/C cmdkey /generic:{ipDns} /user:\"{username}\" /pass:\"{password}\"");
+                var credentials = file.FullPath.Split(':');
+                if (credentials.Length < 3)
+                {
+                    MessageBox.Show("Les informations de connexion RDS sont incomplètes.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
 
-                // Démarrage de la connexion RDS
-                Process.Start("mstsc", args);
+                string ipDns = credentials[0];
+                string username = credentials[1];
+                string encryptedPassword = credentials[2];
+                string password = EncryptionHelper.Decrypt(encryptedPassword);
+
+                // Vérifier si le mot de passe est vide
+                if (string.IsNullOrEmpty(password))
+                {
+                    MessageBox.Show($"Aucun mot de passe n'a été renseigné pour la connexion RDS '{file.Name}'.\nVeuillez éditer cette connexion et spécifier un mot de passe.",
+                                   "Mot de passe manquant", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Création du fichier RDP avec le titre personnalisé
+                string rdpFilePath = Path.Combine(Path.GetTempPath(), $"{file.Name.Replace(' ', '_')}_{Guid.NewGuid().ToString().Substring(0, 8)}.rdp");
+
+                using (StreamWriter sw = new StreamWriter(rdpFilePath))
+                {
+                    // Format RDP standard
+                    sw.WriteLine("screen mode id:i:2");
+                    sw.WriteLine($"full address:s:{ipDns}");
+                    sw.WriteLine($"username:s:{username}");
+                    sw.WriteLine("prompt for credentials:i:0");
+                    sw.WriteLine("desktopwidth:i:0");
+                    sw.WriteLine("desktopheight:i:0");
+                    sw.WriteLine("session bpp:i:32");
+                    sw.WriteLine($"use multimon:i:{(IsMultiMonitor ? "1" : "0")}");
+                    sw.WriteLine("connection type:i:7");
+                    sw.WriteLine("networkautodetect:i:1");
+                    sw.WriteLine("bandwidthautodetect:i:1");
+                    sw.WriteLine("authentication level:i:2");
+                    sw.WriteLine("redirectsmartcards:i:1");
+                    sw.WriteLine("redirectclipboard:i:1");
+                    sw.WriteLine("audiomode:i:0");
+                    sw.WriteLine("autoreconnection enabled:i:1");
+
+                    // Paramètres pour définir le titre de la session
+                    sw.WriteLine($"alternate shell:s:");
+                    sw.WriteLine($"shell working directory:s:");
+                    sw.WriteLine($"disable wallpaper:i:0");
+                    sw.WriteLine($"allow font smoothing:i:1");
+                    sw.WriteLine($"allow desktop composition:i:1");
+
+                    // Définir le titre de la connexion - ce paramètre devrait fonctionner
+                    sw.WriteLine($"title:s:{file.Name}");
+                    sw.WriteLine($"promptcredentialonce:i:1");
+                    sw.WriteLine($"winposstr:s:0,3,0,0,800,600");
+                }
+
+                // Stocker les identifiants temporairement
+                try
+                {
+                    ProcessStartInfo cmdKeyInfo = new ProcessStartInfo
+                    {
+                        FileName = "cmdkey.exe",
+                        Arguments = $"/generic:{ipDns} /user:{username} /pass:{password}",
+                        CreateNoWindow = true,
+                        UseShellExecute = false,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+
+                    using (Process cmdKeyProcess = Process.Start(cmdKeyInfo))
+                    {
+                        cmdKeyProcess.WaitForExit();
+                    }
+                }
+                catch
+                {
+                    // Ignorer les erreurs de cmdkey et continuer
+                }
+
+                // Lancer mstsc directement avec le nom de la connexion comme titre
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "mstsc.exe",
+                    Arguments = $"\"{rdpFilePath}\" /f",
+                    UseShellExecute = true
+                };
+
+                using (Process mstscProcess = Process.Start(startInfo))
+                {
+                    // Ne pas attendre la fin du processus
+                }
+
+                // Supprimer le fichier RDP après un délai
+                Task.Delay(5000).ContinueWith(_ =>
+                {
+                    try
+                    {
+                        if (File.Exists(rdpFilePath))
+                        {
+                            File.Delete(rdpFilePath);
+                        }
+
+                        // Nettoyer les identifiants après un délai plus long
+                        Task.Delay(30000).ContinueWith(__ =>
+                        {
+                            try
+                            {
+                                ProcessStartInfo cleanupInfo = new ProcessStartInfo
+                                {
+                                    FileName = "cmdkey.exe",
+                                    Arguments = $"/delete:{ipDns}",
+                                    CreateNoWindow = true,
+                                    UseShellExecute = false,
+                                    WindowStyle = ProcessWindowStyle.Hidden
+                                };
+
+                                using (Process cleanupProcess = Process.Start(cleanupInfo))
+                                {
+                                    // Ne pas attendre
+                                }
+                            }
+                            catch
+                            {
+                                // Ignorer les erreurs de nettoyage
+                            }
+                        });
+                    }
+                    catch
+                    {
+                        // Ignorer les erreurs de suppression
+                    }
+                });
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erreur lors de la connexion RDS : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Erreur lors de la connexion RDS : {ex.Message}",
+                              "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
         private void ConnectToAnyDesk(FileModel file)
         {
-            var credentials = file.FullPath.Split(':');
-            string id = credentials[0];
-            string password = string.Empty;
-
-            if (credentials.Length > 1 && !string.IsNullOrEmpty(credentials[1]))
-            {
-                password = EncryptionHelper.Decrypt(credentials[1]);
-            }
-
-            string anyDeskPath = @"C:\Program Files (x86)\AnyDesk\AnyDesk.exe";
-            if (!File.Exists(anyDeskPath))
-            {
-                MessageBox.Show("AnyDesk n'est pas installé à l'emplacement attendu.");
-                return;
-            }
-
             try
             {
-                if (!string.IsNullOrEmpty(password))
+                var credentials = file.FullPath.Split(':');
+                string id = credentials[0];
+                string password = string.Empty;
+
+                if (credentials.Length > 1 && !string.IsNullOrEmpty(credentials[1]))
                 {
-                    // Exécution via CMD pour utiliser 'echo' avec le mot de passe
-                    string command = $"echo {password} | \"{anyDeskPath}\" \"{id}\" --with-password";
-                    Process.Start(new ProcessStartInfo
-                    {
-                        FileName = "cmd.exe",
-                        Arguments = $"/C {command}",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    });
+                    password = EncryptionHelper.Decrypt(credentials[1]);
                 }
-                else
+
+                // Vérifier le chemin d'AnyDesk
+                if (!VerifyAndSetAnyDeskPath())
                 {
-                    // Si pas de mot de passe, exécution simple
-                    Process.Start(new ProcessStartInfo
+                    return; // Si le chemin n'est pas valide après demande à l'utilisateur, on arrête
+                }
+
+                string anyDeskPath = AppSettings.Instance.AnyDeskPath;
+
+                try
+                {
+                    if (!string.IsNullOrEmpty(password))
                     {
-                        FileName = anyDeskPath,
-                        Arguments = $"\"{id}\"",
-                        UseShellExecute = false,
-                        CreateNoWindow = true
-                    });
+                        // Exécution via CMD pour utiliser 'echo' avec le mot de passe
+                        string command = $"echo {password} | \"{anyDeskPath}\" \"{id}\" --with-password";
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = $"/C {command}",
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        });
+                    }
+                    else
+                    {
+                        // Si pas de mot de passe, exécution simple
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = anyDeskPath,
+                            Arguments = $"\"{id}\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Erreur lors de l'ouverture de AnyDesk : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
                 }
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erreur lors de l'ouverture de AnyDesk : {ex.Message}");
+                MessageBox.Show($"Erreur lors de la préparation de la connexion AnyDesk : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        // Vérifier et demander le chemin d'AnyDesk si nécessaire
+        private bool VerifyAndSetAnyDeskPath()
+        {
+            // Si le chemin par défaut est valide, pas besoin de demander
+            if (AppSettings.Instance.IsAnyDeskPathValid())
+            {
+                return true;
+            }
+
+            // Sinon, demander à l'utilisateur
+            MessageBox.Show(
+                "Le chemin d'AnyDesk n'est pas valide ou n'a pas été configuré.\n" +
+                "Veuillez sélectionner l'exécutable AnyDesk sur votre système.",
+                "Configuration AnyDesk",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Sélectionner l'exécutable AnyDesk",
+                Filter = "Exécutable (*.exe)|*.exe",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string selectedPath = openFileDialog.FileName;
+
+                // Vérifier que le fichier sélectionné est bien AnyDesk
+                if (Path.GetFileName(selectedPath).ToLower() == "anydesk.exe")
+                {
+                    // Sauvegarder le chemin
+                    AppSettings.Instance.AnyDeskPath = selectedPath;
+                    AppSettings.Instance.Save();
+                    return true;
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Le fichier sélectionné ne semble pas être AnyDesk.\n" +
+                        "Veuillez sélectionner l'exécutable AnyDesk.exe.",
+                        "Erreur de sélection",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+
+                    return VerifyAndSetAnyDeskPath(); // Nouvelle tentative
+                }
+            }
+
+            return false; // L'utilisateur a annulé
         }
 
         private void OpenRdsAccountWindow(object parameter)
@@ -324,7 +512,7 @@ namespace AccesClientWPF.ViewModels
             }
         }
 
-        private void AddFile()
+        public void AddFile()
         {
             if (SelectedClient == null)
             {
