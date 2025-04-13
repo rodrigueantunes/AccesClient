@@ -145,24 +145,60 @@ namespace AccesClientWPF.ViewModels
                 return;
             }
 
+            // Faire une copie de l'élément original pour référence
+            FileModel originalFile = new FileModel
+            {
+                Name = selectedFile.Name,
+                Client = selectedFile.Client,
+                Type = selectedFile.Type,
+                FullPath = selectedFile.FullPath,
+                CustomIconPath = selectedFile.CustomIconPath,
+                WindowsUsername = selectedFile.WindowsUsername,
+                WindowsPassword = selectedFile.WindowsPassword
+            };
+
             // Stocker le client actuellement sélectionné
             var currentlySelectedClient = SelectedClient;
 
             var editWindow = new AddEntryWindow(Clients, SelectedClient, selectedFile);
             if (editWindow.ShowDialog() == true && editWindow.FileEntry != null)
             {
+                // Charger la base de données actuelle
                 var database = LoadDatabase();
-                var existingFile = database.Files.FirstOrDefault(f => f.Name == selectedFile.Name && f.Client == selectedFile.Client);
-                if (existingFile != null)
+
+                // Trouver l'index de l'élément original pour préserver sa position
+                int originalIndex = -1;
+                var itemToReplace = database.Files.FirstOrDefault(f =>
+                    f.Name == originalFile.Name &&
+                    f.Client == originalFile.Client);
+
+                if (itemToReplace != null)
                 {
-                    int index = database.Files.IndexOf(existingFile);
-                    database.Files[index] = editWindow.FileEntry;
+                    originalIndex = database.Files.IndexOf(itemToReplace);
+
+                    // Vérifier s'il existe déjà un autre élément avec le nouveau nom
+                    bool duplicateExists = database.Files.Any(f =>
+                        f != itemToReplace && // Ne pas comparer avec lui-même
+                        f.Name == editWindow.FileEntry.Name &&
+                        f.Client == editWindow.FileEntry.Client);
+
+                    if (duplicateExists)
+                    {
+                        MessageBox.Show($"Un élément avec le nom '{editWindow.FileEntry.Name}' existe déjà pour ce client. " +
+                                        "Veuillez choisir un autre nom.",
+                                        "Nom en double", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    // Remplacer l'élément à sa position d'origine
+                    database.Files[originalIndex] = editWindow.FileEntry;
+
+                    // Sauvegarder la base de données
                     SaveDatabase(database);
 
-                    // Réappliquer la sélection du client pour recharger ses fichiers
-                    var clientName = currentlySelectedClient.Name;
-                    SelectedClient = null; // Forcer la réinitialisation  
-                    SelectedClient = Clients.FirstOrDefault(c => c.Name == clientName);
+                    // Recharger les fichiers pour le client sélectionné
+                    SelectedClient = null; // Forcer la réinitialisation
+                    SelectedClient = Clients.FirstOrDefault(c => c.Name == currentlySelectedClient.Name);
                 }
             }
         }
@@ -867,12 +903,12 @@ namespace AccesClientWPF.ViewModels
 
             // 4) (Optionnel) Scanne entièrement le dossier Program Files
             //    pour trouver tout .exe contenant \"chrome\", \"opera\", etc. 
-            
+
             foundPaths.UnionWith(ScanProgramFilesForPotentialBrowsers(
                 Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)));
             foundPaths.UnionWith(ScanProgramFilesForPotentialBrowsers(
                 Environment.GetFolderPath(Environment.SpecialFolder.ProgramFilesX86)));
-            
+
 
             // Ne garder que ceux qui existent vraiment
             return foundPaths.Where(File.Exists).ToList();
@@ -1100,5 +1136,25 @@ namespace AccesClientWPF.ViewModels
 
 
         protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+
+
+        private ICommand _manageSharedDatabaseCommand;
+       
+        
+        public ICommand ManageSharedDatabaseCommand => _manageSharedDatabaseCommand ??= new RelayCommand(_ => OpenSharedDatabaseWindow());
+
+        private void OpenSharedDatabaseWindow()
+        {
+            try
+            {
+                var sharedDatabaseWindow = new SharedDatabaseWindow();
+                sharedDatabaseWindow.ShowDialog();
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de l'ouverture de la fenêtre de gestion de base partagée : {ex.Message}",
+                              "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

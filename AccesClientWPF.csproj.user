@@ -25,6 +25,12 @@
     <Compile Update="Views\RdsAccountWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="Views\SharedClientManagementWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Views\SharedDatabaseWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
   </ItemGroup>
   <ItemGroup>
     <None Update="Views\AddEntryWindow.xaml">
@@ -43,6 +49,12 @@
       <SubType>Designer</SubType>
     </None>
     <None Update="Views\RdsAccountWindow.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Views\SharedClientManagementWindow.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Views\SharedDatabaseWindow.xaml">
       <SubType>Designer</SubType>
     </None>
   </ItemGroup>

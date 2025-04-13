@@ -45,7 +45,7 @@ namespace AccesClientWPF.Views
             }
         }
 
-         private void SaveElements()
+        private void SaveElements()
         {
             var database = File.Exists(_jsonFilePath)
                 ? JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(File.ReadAllText(_jsonFilePath))

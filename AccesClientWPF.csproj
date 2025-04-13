@@ -38,8 +38,9 @@
 		<Page Include="Views\\ClientManagementWindow.xaml" />
 		<Page Include="Views\\AddEntryWindow.xaml" />
 		<Page Include="Views\\ExistingElementsWindow.xaml" />
-		<!-- Ajout de ChooseBrowserWindow.xaml en tant que Page WPF -->
 		<Page Include="Views\\ChooseBrowserWindow.xaml" />
+		<Page Include="Views\\SharedDatabaseWindow.xaml" />
+		<Page Include="Views\\SharedClientManagementWindow.xaml" />
 	</ItemGroup>
 
 	<!-- Ressources Images -->
@@ -80,6 +81,12 @@
 		<None Update="Properties\\Settings.settings">
 			<Generator>SettingsSingleFileGenerator</Generator>
 			<LastGenOutput>Settings.Designer.cs</LastGenOutput>
+		</None>
+		<None Update="Views\SharedClientManagementWindow.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</None>
+		<None Update="Views\SharedDatabaseWindow.xaml">
+		  <Generator>MSBuild:Compile</Generator>
 		</None>
 
 		<!-- Supprime la déclaration de type None pour ChooseBrowserWindow.xaml si elle existait -->

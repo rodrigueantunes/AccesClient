@@ -8,21 +8,53 @@ namespace AccesClientWPF.Helpers
 {
     public static class DatabaseHelper
     {
-        private const string JsonFilePath = @"C:\Application\database.json";
-
+        private static readonly string JsonFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "database.json");
         public static DatabaseModel LoadDatabase()
         {
-            if (File.Exists(JsonFilePath))
+            try
             {
-                var jsonData = File.ReadAllText(JsonFilePath);
-                return JsonConvert.DeserializeObject<DatabaseModel>(jsonData) ?? new DatabaseModel();
+                // Vérifier si le fichier existe
+                if (File.Exists(JsonFilePath))
+                {
+                    var jsonData = File.ReadAllText(JsonFilePath);
+                    var database = JsonConvert.DeserializeObject<DatabaseModel>(jsonData);
+                    return database ?? new DatabaseModel();  // Si le fichier est vide ou mal formaté, retourner un modèle vide
+                }
+                else
+                {
+                    // Si le fichier n'existe pas, retourner un modèle vide
+                    return new DatabaseModel();
+                }
             }
-            return new DatabaseModel();
+            catch (Exception ex)
+            {
+                // Si une erreur se produit, afficher l'exception et retourner un modèle vide
+                Console.WriteLine($"Erreur lors du chargement de la base de données : {ex.Message}");
+                return new DatabaseModel();
+            }
         }
 
         public static void SaveDatabase(DatabaseModel database)
         {
-            File.WriteAllText(JsonFilePath, JsonConvert.SerializeObject(database, Formatting.Indented));
+            try
+            {
+                // Vérifier que la base de données n'est pas nulle
+                if (database != null)
+                {
+                    // Convertir les données en JSON et les écrire dans le fichier
+                    var jsonData = JsonConvert.SerializeObject(database, Formatting.Indented);
+                    File.WriteAllText(JsonFilePath, jsonData);
+                }
+                else
+                {
+                    Console.WriteLine("La base de données est vide, aucune donnée à sauvegarder.");
+                }
+            }
+            catch (Exception ex)
+            {
+                // Si une erreur se produit lors de l'écriture dans le fichier
+                Console.WriteLine($"Erreur lors de la sauvegarde de la base de données : {ex.Message}");
+            }
         }
     }
 

@@ -166,20 +166,6 @@ namespace AccesClientWPF.Views
                 WindowsPassword = windowsPassword
             };
 
-            if (_editingFile != null && _files.Contains(_editingFile))
-            {
-                var index = _files.IndexOf(_editingFile);
-                if (index != -1)
-                {
-                    _files[index] = newEntry;
-                }
-            }
-            else
-            {
-                _files.Add(newEntry);
-            }
-
-            SaveFiles();
             FileEntry = newEntry;
             DialogResult = true;
             Close();
