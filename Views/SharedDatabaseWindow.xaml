@@ -3,8 +3,8 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client 1.2.0 / Partagé"
-        Height="800" Width="1000"
+        Title="Accès Client 1.2.2 / Partagé"
+        Height="600" Width="1000"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
 
@@ -62,34 +62,38 @@
         <!-- Divise la fenêtre en 2 sections: Gauche et Droite -->
         <DockPanel>
             <Border DockPanel.Dock="Left" Background="#34495E" Padding="10" CornerRadius="8" Width="253">
-                <StackPanel Margin="3,0,0,0">
-                    <TextBlock Text="Clients" FontSize="18" FontWeight="Bold" Foreground="White" Margin="5"/>
+                <DockPanel Margin="3,0,0,0">
+                    <TextBlock Text="Clients" FontSize="18" FontWeight="Bold" Foreground="White" Margin="5" DockPanel.Dock="Top"/>
+
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <Button Content="Gérer les clients" Click="ManageClientsCommand_Click" 
+            Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+
+                        <!-- Bouton pour créer une nouvelle base -->
+                        <Button Content="Créer un nouveau fichier" Click="CreateNewDatabase_Click" 
+            Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+
+                        <!-- Bouton pour ouvrir une base partagée -->
+                        <Button Content="Ouvrir base partagée" Click="OpenSharedDatabase_Click" 
+            Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+
+                        <!-- Bouton pour importer dans la base principale -->
+                        <Button Content="Importer vers base principale" Click="ImportToMainDatabase_Click" 
+            Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+
+                        <!-- Boutons Sauvegarder et Annuler -->
+                        <Button x:Name="BtnSave" Content="Sauvegarder" Click="SaveSharedDatabase_Click" 
+            Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+
+                        <Button x:Name="BtnCancel" Content="Quitter (perdu si non sauvegardé)" Click="CancelAndClose_Click" 
+            Margin="10,5,10,10" Height="45" Style="{StaticResource RoundedButton}"/>
+                    </StackPanel>
+
                     <ListBox ItemsSource="{Binding Clients}" DisplayMemberPath="Name"
-                         SelectedItem="{Binding SelectedClient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                         Background="#D5DBDB" BorderThickness="0" Padding="5"/>
-
-
-                    <Button Content="Créer un nouveau fichier" Click="CreateNewDatabase_Click" 
-                        Margin="10" Height="35" Style="{StaticResource RoundedButton}"/>
-
-                    <Button Content="Gérer les clients" Click="ManageClientsCommand_Click" 
-                        Margin="10" Height="35" Style="{StaticResource RoundedButton}"/>
-
-                    <!-- Bouton pour ouvrir une base partagée -->
-                    <Button Content="Ouvrir base partagée" Click="OpenSharedDatabase_Click" 
-                        Margin="10" Height="35" Style="{StaticResource RoundedButton}"/>
-
-                    <!-- Bouton pour importer dans la base principale -->
-                    <Button Content="Importer vers base principale" Click="ImportToMainDatabase_Click" 
-                        Margin="10" Height="35" Style="{StaticResource RoundedButton}"/>
-
-                    <!-- Boutons Sauvegarder et Annuler -->
-                    <Button x:Name="BtnSave" Content="Sauvegarder" Click="SaveSharedDatabase_Click" 
-                        Margin="10" Height="35" Style="{StaticResource RoundedButton}"/>
-
-                    <Button x:Name="BtnCancel" Content="Quitter (perdu si non sauvegardé)" Click="CancelAndClose_Click" 
-                        Margin="10" Height="35" Style="{StaticResource RoundedButton}"/>
-                </StackPanel>
+         SelectedItem="{Binding SelectedClient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+         Background="#D5DBDB" BorderThickness="0" Padding="5" Margin="0,5"
+         VerticalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                </DockPanel>
             </Border>
 
             <!-- Contenu principal -->

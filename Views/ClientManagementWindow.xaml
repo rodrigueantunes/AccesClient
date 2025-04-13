@@ -4,10 +4,9 @@
         Title="Gestion des Clients"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen"
-        SizeToContent="WidthAndHeight"
+        Width="700" Height="500"
         MinWidth="400" MinHeight="300"
-        MaxWidth="{Binding SystemParameters.PrimaryScreenWidth}"
-        MaxHeight="{Binding SystemParameters.PrimaryScreenHeight}">
+        ResizeMode="CanResize">
     <Window.Resources>
         <!-- Style pour les boutons arrondis -->
         <Style x:Key="RoundedButton" TargetType="Button">
@@ -31,7 +30,7 @@
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
-            <RowDefinition Height="*"/>
+            <RowDefinition Height="*" MinHeight="200"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
         <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
@@ -53,7 +52,8 @@
                 <ColumnDefinition Width="*"/>
                 <ColumnDefinition Width="Auto"/>
             </Grid.ColumnDefinitions>
-            <ListBox x:Name="LstClients" DisplayMemberPath="Name" Background="#D5DBDB" BorderThickness="0"/>
+            <ListBox x:Name="LstClients" DisplayMemberPath="Name" Background="#D5DBDB" BorderThickness="0"
+         ScrollViewer.VerticalScrollBarVisibility="Auto" Height="Auto" VerticalAlignment="Stretch"/>
             <!-- Flèches pour monter et descendre les clients -->
             <StackPanel Orientation="Vertical" VerticalAlignment="Center" Grid.Column="1" Margin="10,0,0,0">
                 <Button Content="&#x2191;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40" 

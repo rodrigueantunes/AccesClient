@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client 1.2.0" Height="800" Width="1000"
+        Title="Accès Client 1.2.2" Height="600" Width="1000"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
 
@@ -66,21 +66,25 @@
         <!-- Divise la fenêtre en 2 sections: Gauche et Droite -->
         <DockPanel>
             <Border DockPanel.Dock="Left" Background="#34495E" Padding="10" CornerRadius="8">
-                <StackPanel Width="220">
-                    <TextBlock Text="Clients" FontSize="18" FontWeight="Bold" Foreground="White" Margin="5"/>
-                    <ListBox ItemsSource="{Binding Clients}" DisplayMemberPath="Name"
-                 SelectedItem="{Binding SelectedClient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                 Background="#D5DBDB" BorderThickness="0" Padding="5"/>
+                <DockPanel Width="220">
+                    <TextBlock Text="Clients" FontSize="18" FontWeight="Bold" Foreground="White" Margin="5" DockPanel.Dock="Top"/>
 
-                    <Button Content="Gérer les clients" Command="{Binding ManageClientsCommand}" 
-                Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
-                    <Button Content="Extranet" Command="{Binding OpenExtranetCommand}" 
-                Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
-                    <Button Content="Aide en ligne" Command="{Binding OpenOnlineHelpCommand}" 
-                Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
-                    <Button Content="Gestion base partagée" Command="{Binding ManageSharedDatabaseCommand}" 
-                Margin="10" Height="45" Style="{StaticResource RoundedButton}"/>
-                </StackPanel>
+                    <StackPanel DockPanel.Dock="Bottom">
+                        <Button Content="Gérer les clients" Command="{Binding ManageClientsCommand}" 
+                Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+                        <Button Content="Extranet" Command="{Binding OpenExtranetCommand}" 
+                Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+                        <Button Content="Aide en ligne" Command="{Binding OpenOnlineHelpCommand}" 
+                Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+                        <Button Content="Gestion base partagée" Command="{Binding ManageSharedDatabaseCommand}" 
+                Margin="10,5,10,10" Height="45" Style="{StaticResource RoundedButton}"/>
+                    </StackPanel>
+
+                    <ListBox ItemsSource="{Binding Clients}" DisplayMemberPath="Name"
+             SelectedItem="{Binding SelectedClient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+             Background="#D5DBDB" BorderThickness="0" Padding="5" Margin="0,5"
+             VerticalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
+                </DockPanel>
             </Border>
 
 

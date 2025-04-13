@@ -89,7 +89,7 @@ namespace AccesClientWPF.Views
                     _originalFileName = Path.GetFileNameWithoutExtension(_currentFilePath);
 
                     // Mettre à jour le titre de la fenêtre
-                    this.Title = $"Accès Client 1.2.0 / Partagé ({_originalFileName})";
+                    this.Title = $"Accès Client 1.2.2 / Partagé ({_originalFileName})";
 
                     // Charger les données du fichier
                     var jsonData = File.ReadAllText(_currentFilePath);
@@ -150,7 +150,7 @@ namespace AccesClientWPF.Views
             _viewModel.CreateNewDatabase();
             _currentFilePath = null;
             _originalFileName = null;
-            this.Title = "Accès Client 1.2.0 / Partagé (Nouveau)";
+            this.Title = "Accès Client 1.2.2 / Partagé (Nouveau)";
 
             // Activer les boutons
             if (_saveButton != null) _saveButton.IsEnabled = true;
