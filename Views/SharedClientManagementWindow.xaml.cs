@@ -21,6 +21,7 @@ namespace AccesClientWPF.Views
             LstClients.ItemsSource = _viewModel.Clients;
         }
 
+
         private void AddClient_Click(object sender, RoutedEventArgs e)
         {
             string clientName = TxtClientName.Text.Trim();
@@ -168,6 +169,7 @@ namespace AccesClientWPF.Views
                 MessageBox.Show("Veuillez sélectionner un client à supprimer.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
+
 
         private void Close_Click(object sender, RoutedEventArgs e)
         {

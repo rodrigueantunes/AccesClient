@@ -13,6 +13,7 @@ using System.Windows.Media;
 using Newtonsoft.Json;
 using HelpersDatabaseModel = AccesClientWPF.Helpers.DatabaseModel;
 using ModelsDatabaseModel = AccesClientWPF.Models.DatabaseModel;
+using System.Diagnostics;
 
 namespace AccesClientWPF.Views
 {
@@ -24,6 +25,9 @@ namespace AccesClientWPF.Views
         private string _originalFileName;
         private Button _saveButton;
         private Button _cancelButton;
+        private string _lockFilePath;
+        private bool _hasLock;
+
 
         public SharedDatabaseWindow()
         {
@@ -85,21 +89,34 @@ namespace AccesClientWPF.Views
             {
                 try
                 {
-                    _currentFilePath = openFileDialog.FileName;
+                    string selectedFilePath = openFileDialog.FileName;
+                    string lockFilePath = $"{selectedFilePath}.lock";
+
+                    // Vérifier si déjà ouvert
+                    if (File.Exists(lockFilePath))
+                    {
+                        string lockingUser = File.ReadAllText(lockFilePath);
+                        MessageBox.Show($"La base partagée est ouverte par {lockingUser}.",
+                                        "Base verrouillée", MessageBoxButton.OK, MessageBoxImage.Warning);
+                        return;
+                    }
+
+                    // Créer le verrou
+                    File.WriteAllText(lockFilePath, Environment.UserName);
+                    _lockFilePath = lockFilePath;
+                    _hasLock = true;
+
+                    _currentFilePath = selectedFilePath;
                     _originalFileName = Path.GetFileNameWithoutExtension(_currentFilePath);
 
-                    // Mettre à jour le titre de la fenêtre
-                    this.Title = $"Accès Client 1.2.2 / Partagé ({_originalFileName})";
+                    this.Title = $"Accès Client 1.3.0 / Partagé ({_originalFileName})";
 
-                    // Charger les données du fichier
                     var jsonData = File.ReadAllText(_currentFilePath);
                     var importedDatabase = JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(jsonData);
 
                     if (importedDatabase != null)
                     {
                         _viewModel.LoadDatabase(importedDatabase);
-
-                        // Activer les boutons Sauvegarder et Annuler s'ils existent
                         if (_saveButton != null) _saveButton.IsEnabled = true;
                         if (_cancelButton != null) _cancelButton.IsEnabled = true;
                     }
@@ -115,6 +132,23 @@ namespace AccesClientWPF.Views
             }
         }
 
+        protected override void OnClosed(EventArgs e)
+        {
+            if (_hasLock && !string.IsNullOrEmpty(_lockFilePath) && File.Exists(_lockFilePath))
+            {
+                try
+                {
+                    File.Delete(_lockFilePath);
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Erreur lors de la suppression du verrou : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            base.OnClosed(e);
+        }
+
+
         private void ManageClientsCommand_Click(object sender, RoutedEventArgs e)
         {
 
@@ -122,7 +156,7 @@ namespace AccesClientWPF.Views
 
             if (sharedClientWindow.ShowDialog() == true)
             {
-               
+
                 if (_viewModel.SelectedClient != null &&
                     !_viewModel.Clients.Contains(_viewModel.SelectedClient))
                 {
@@ -150,7 +184,7 @@ namespace AccesClientWPF.Views
             _viewModel.CreateNewDatabase();
             _currentFilePath = null;
             _originalFileName = null;
-            this.Title = "Accès Client 1.2.2 / Partagé (Nouveau)";
+            this.Title = "Accès Client 1.3.0 / Partagé (Nouveau)";
 
             // Activer les boutons
             if (_saveButton != null) _saveButton.IsEnabled = true;
@@ -307,12 +341,15 @@ namespace AccesClientWPF.Views
 
         private void AddContextMenu_Click(object sender, RoutedEventArgs e)
         {
+            // Vérifier uniquement si un client est sélectionné, pas si un élément est sélectionné
             if (_viewModel.SelectedClient == null)
             {
                 MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un élément.",
                     "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
+
+            // Si un client est sélectionné, on peut ajouter un fichier
             _viewModel.AddFile();
         }
 
@@ -392,7 +429,443 @@ namespace AccesClientWPF.Views
             }
             return null;
         }
+        private void TestConnectionMenu_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel.SelectedFile == null)
+            {
+                MessageBox.Show("Veuillez sélectionner un élément à tester.",
+                    "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
 
+            try
+            {
+                var file = _viewModel.SelectedFile;
 
+                switch (file.Type)
+                {
+                    case "RDS":
+                        ConnectToRemoteDesktop(file);
+                        break;
+                    case "AnyDesk":
+                        ConnectToAnyDesk(file);
+                        break;
+                    case "VPN":
+                        LaunchProgram(file.FullPath);
+                        break;
+                    case "Dossier":
+                        OpenFolder(file.FullPath);
+                        break;
+                    case "Fichier":
+                        OpenFile(file.FullPath);
+                        break;
+                    default:
+                        MessageBox.Show($"Test de connexion non implémenté pour le type '{file.Type}'.",
+                            "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                        break;
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors du test de connexion : {ex.Message}",
+                    "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void LaunchProgram(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    Process.Start(path);
+                }
+                else
+                {
+                    MessageBox.Show($"Le fichier '{path}' n'existe pas.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de l'ouverture du programme : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OpenFolder(string path)
+        {
+            try
+            {
+                if (Directory.Exists(path))
+                {
+                    // Utiliser ProcessStartInfo pour une meilleure gestion
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = string.Format("\"{0}\"", path),
+                        UseShellExecute = true
+                    };
+                    Process.Start(startInfo);
+                }
+                else
+                {
+                    MessageBox.Show($"Le dossier '{path}' n'existe pas.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de l'ouverture du dossier : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ConnectToRemoteDesktop(FileModel file)
+        {
+            try
+            {
+                var credentials = file.FullPath.Split(':');
+                if (credentials.Length < 3)
+                {
+                    MessageBox.Show("Les informations de connexion RDS sont incomplètes.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                string ipDns = credentials[0];
+                string username = credentials[1];
+                string encryptedPassword = credentials[2];
+                string password = EncryptionHelper.Decrypt(encryptedPassword);
+
+                // Vérifier si le mot de passe est vide
+                if (string.IsNullOrEmpty(password))
+                {
+                    MessageBox.Show($"Aucun mot de passe n'a été renseigné pour la connexion RDS '{file.Name}'.\nVeuillez éditer cette connexion et spécifier un mot de passe.",
+                                   "Mot de passe manquant", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                // Création du fichier RDP avec le titre personnalisé
+                string rdpFilePath = Path.Combine(Path.GetTempPath(), $"{file.Name.Replace(' ', '_')}_{Guid.NewGuid().ToString().Substring(0, 8)}.rdp");
+
+                using (StreamWriter sw = new StreamWriter(rdpFilePath))
+                {
+                    // Format RDP standard
+                    sw.WriteLine("screen mode id:i:2");
+                    sw.WriteLine($"full address:s:{ipDns}");
+                    sw.WriteLine($"username:s:{username}");
+                    sw.WriteLine("prompt for credentials:i:0");
+                    sw.WriteLine("desktopwidth:i:0");
+                    sw.WriteLine("desktopheight:i:0");
+                    sw.WriteLine("session bpp:i:32");
+                    sw.WriteLine($"use multimon:i:{(_viewModel.IsMultiMonitor ? "1" : "0")}");
+                    sw.WriteLine("connection type:i:7");
+                    sw.WriteLine("networkautodetect:i:1");
+                    sw.WriteLine("bandwidthautodetect:i:1");
+                    sw.WriteLine("authentication level:i:2");
+                    sw.WriteLine("redirectsmartcards:i:1");
+                    sw.WriteLine("redirectclipboard:i:1");
+                    sw.WriteLine("audiomode:i:0");
+                    sw.WriteLine("autoreconnection enabled:i:1");
+
+                    // Paramètres pour définir le titre de la session
+                    sw.WriteLine($"alternate shell:s:");
+                    sw.WriteLine($"shell working directory:s:");
+                    sw.WriteLine($"disable wallpaper:i:0");
+                    sw.WriteLine($"allow font smoothing:i:1");
+                    sw.WriteLine($"allow desktop composition:i:1");
+
+                    // Définir le titre de la connexion - ce paramètre devrait fonctionner
+                    sw.WriteLine($"title:s:{file.Name}");
+                    sw.WriteLine($"promptcredentialonce:i:1");
+                    sw.WriteLine($"winposstr:s:0,3,0,0,800,600");
+                }
+
+                // Stocker les identifiants temporairement
+                try
+                {
+                    ProcessStartInfo cmdKeyInfo = new ProcessStartInfo
+                    {
+                        FileName = "cmdkey.exe",
+                        Arguments = $"/generic:{ipDns} /user:{username} /pass:{password}",
+                        CreateNoWindow = true,
+                        UseShellExecute = false,
+                        WindowStyle = ProcessWindowStyle.Hidden
+                    };
+
+                    using (Process cmdKeyProcess = Process.Start(cmdKeyInfo))
+                    {
+                        cmdKeyProcess.WaitForExit();
+                    }
+                }
+                catch
+                {
+                    // Ignorer les erreurs de cmdkey et continuer
+                }
+
+                // Lancer mstsc directement avec le nom de la connexion comme titre
+                ProcessStartInfo startInfo = new ProcessStartInfo
+                {
+                    FileName = "mstsc.exe",
+                    Arguments = $"\"{rdpFilePath}\" /f",
+                    UseShellExecute = true
+                };
+
+                using (Process mstscProcess = Process.Start(startInfo))
+                {
+                    // Ne pas attendre la fin du processus
+                }
+
+                // Supprimer le fichier RDP après un délai
+                Task.Delay(5000).ContinueWith(_ =>
+                {
+                    try
+                    {
+                        if (File.Exists(rdpFilePath))
+                        {
+                            File.Delete(rdpFilePath);
+                        }
+
+                        // Nettoyer les identifiants après un délai plus long
+                        Task.Delay(30000).ContinueWith(__ =>
+                        {
+                            try
+                            {
+                                ProcessStartInfo cleanupInfo = new ProcessStartInfo
+                                {
+                                    FileName = "cmdkey.exe",
+                                    Arguments = $"/delete:{ipDns}",
+                                    CreateNoWindow = true,
+                                    UseShellExecute = false,
+                                    WindowStyle = ProcessWindowStyle.Hidden
+                                };
+
+                                using (Process cleanupProcess = Process.Start(cleanupInfo))
+                                {
+                                    // Ne pas attendre
+                                }
+                            }
+                            catch
+                            {
+                                // Ignorer les erreurs de nettoyage
+                            }
+                        });
+                    }
+                    catch
+                    {
+                        // Ignorer les erreurs de suppression
+                    }
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de la connexion RDS : {ex.Message}",
+                              "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void ConnectToAnyDesk(FileModel file)
+        {
+            try
+            {
+                var credentials = file.FullPath.Split(':');
+                string id = credentials[0];
+                string password = string.Empty;
+
+                if (credentials.Length > 1 && !string.IsNullOrEmpty(credentials[1]))
+                {
+                    password = EncryptionHelper.Decrypt(credentials[1]);
+                }
+
+                // Vérifier le chemin d'AnyDesk
+                if (!VerifyAndSetAnyDeskPath())
+                {
+                    return; // Si le chemin n'est pas valide après demande à l'utilisateur, on arrête
+                }
+
+                string anyDeskPath = AppSettings.Instance.AnyDeskPath;
+
+                try
+                {
+                    if (!string.IsNullOrEmpty(password))
+                    {
+                        // Exécution via CMD pour utiliser 'echo' avec le mot de passe
+                        string command = $"echo {password} | \"{anyDeskPath}\" \"{id}\" --with-password";
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = "cmd.exe",
+                            Arguments = $"/C {command}",
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        });
+                    }
+                    else
+                    {
+                        // Si pas de mot de passe, exécution simple
+                        Process.Start(new ProcessStartInfo
+                        {
+                            FileName = anyDeskPath,
+                            Arguments = $"\"{id}\"",
+                            UseShellExecute = false,
+                            CreateNoWindow = true
+                        });
+                    }
+                }
+                catch (Exception ex)
+                {
+                    MessageBox.Show($"Erreur lors de l'ouverture de AnyDesk : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de la préparation de la connexion AnyDesk : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        // Vérifier et demander le chemin d'AnyDesk si nécessaire
+        private bool VerifyAndSetAnyDeskPath()
+        {
+            // Si le chemin par défaut est valide, pas besoin de demander
+            if (AppSettings.Instance.IsAnyDeskPathValid())
+            {
+                return true;
+            }
+
+            // Sinon, demander à l'utilisateur
+            MessageBox.Show(
+                "Le chemin d'AnyDesk n'est pas valide ou n'a pas été configuré.\n" +
+                "Veuillez sélectionner l'exécutable AnyDesk sur votre système.",
+                "Configuration AnyDesk",
+                MessageBoxButton.OK,
+                MessageBoxImage.Information);
+
+            var openFileDialog = new Microsoft.Win32.OpenFileDialog
+            {
+                Title = "Sélectionner l'exécutable AnyDesk",
+                Filter = "Exécutable (*.exe)|*.exe",
+                InitialDirectory = Environment.GetFolderPath(Environment.SpecialFolder.ProgramFiles)
+            };
+
+            if (openFileDialog.ShowDialog() == true)
+            {
+                string selectedPath = openFileDialog.FileName;
+
+                // Vérifier que le fichier sélectionné est bien AnyDesk
+                if (Path.GetFileName(selectedPath).ToLower() == "anydesk.exe")
+                {
+                    // Sauvegarder le chemin
+                    AppSettings.Instance.AnyDeskPath = selectedPath;
+                    AppSettings.Instance.Save();
+                    return true;
+                }
+                else
+                {
+                    MessageBox.Show(
+                        "Le fichier sélectionné ne semble pas être AnyDesk.\n" +
+                        "Veuillez sélectionner l'exécutable AnyDesk.exe.",
+                        "Erreur de sélection",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+
+                    return VerifyAndSetAnyDeskPath(); // Nouvelle tentative
+                }
+            }
+
+            return false; // L'utilisateur a annulé
+        }
+
+        private void FileList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            // S'assurer que le menu contextuel s'affiche même si on clique dans une zone vide
+            // Récupérer le menu contextuel
+            ContextMenu menu = FileList.ContextMenu;
+            if (menu == null) return;
+
+            // La première option "Ajouter un élément" est toujours active si un client est sélectionné
+            bool clientSelected = _viewModel.SelectedClient != null;
+
+            // Les autres options ne sont actives que si un élément est également sélectionné
+            bool itemSelected = FileList.SelectedItem != null;
+
+            // Activer/désactiver les options en conséquence
+            if (menu.Items.Count > 0) ((MenuItem)menu.Items[0]).IsEnabled = clientSelected;
+            if (menu.Items.Count > 1) ((MenuItem)menu.Items[1]).IsEnabled = itemSelected;
+            if (menu.Items.Count > 2) ((MenuItem)menu.Items[2]).IsEnabled = itemSelected;
+            if (menu.Items.Count > 3) ((MenuItem)menu.Items[3]).IsEnabled = itemSelected;
+
+            // Si un client est sélectionné, permettre l'ouverture du menu même sans sélection d'élément
+            if (clientSelected)
+            {
+                // Positionner le menu à l'endroit du clic
+                Point mousePosition = e.GetPosition(FileList);
+                menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Relative;
+                menu.PlacementTarget = FileList;
+                menu.HorizontalOffset = mousePosition.X;
+                menu.VerticalOffset = mousePosition.Y;
+                menu.IsOpen = true;
+
+                // Marquer l'événement comme géré pour éviter d'autres traitements
+                e.Handled = true;
+            }
+        }
+
+        private void FileList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
+        {
+            // Récupérer le menu contextuel
+            ContextMenu menu = FileList.ContextMenu;
+            if (menu == null) return;
+
+            // La première option "Ajouter un élément" est toujours active si un client est sélectionné
+            bool clientSelected = _viewModel.SelectedClient != null;
+
+            // Les autres options ne sont actives que si un élément est également sélectionné
+            bool itemSelected = FileList.SelectedItem != null;
+
+            // Activer/désactiver les options en conséquence
+            if (menu.Items.Count > 0) ((MenuItem)menu.Items[0]).IsEnabled = clientSelected;
+            if (menu.Items.Count > 1) ((MenuItem)menu.Items[1]).IsEnabled = itemSelected;
+            if (menu.Items.Count > 2) ((MenuItem)menu.Items[2]).IsEnabled = itemSelected;
+            if (menu.Items.Count > 3) ((MenuItem)menu.Items[3]).IsEnabled = itemSelected;
+
+            // Si aucun client n'est sélectionné, annuler l'ouverture du menu
+            if (!clientSelected)
+            {
+                e.Handled = true;
+            }
+        }
+
+        private void AddButtonDirect_Click(object sender, RoutedEventArgs e)
+        {
+            // Appel direct à la méthode d'ajout (même logique que pour le menu contextuel)
+            if (_viewModel.SelectedClient == null)
+            {
+                MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un élément.",
+                    "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            // Si un client est sélectionné, on peut ajouter un fichier
+            _viewModel.AddFile();
+        }
+
+        private void OpenFile(string path)
+        {
+            try
+            {
+                if (File.Exists(path))
+                {
+                    ProcessStartInfo startInfo = new ProcessStartInfo
+                    {
+                        FileName = path,
+                        UseShellExecute = true
+                    };
+                    Process.Start(startInfo);
+                }
+                else
+                {
+                    MessageBox.Show($"Le fichier '{path}' n'existe pas.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur lors de l'ouverture du fichier : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
     }
 }

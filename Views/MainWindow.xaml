@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client 1.2.2" Height="600" Width="1000"
+        Title="Accès Client 1.3.0" Height="600" Width="1000"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
 
@@ -98,6 +98,39 @@
                         <CheckBox Name="ChkShowCredentials" Content="Afficher les identifiants" 
                       IsChecked="{Binding ShowCredentials, Mode=TwoWay}" />
                     </StackPanel>
+
+                    <Border Background="#34495E" Margin="10,5,10,10" Padding="15,10" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="{Binding SelectedClient.Name}" 
+                  FontSize="20" 
+                  FontWeight="Bold" 
+                  Foreground="White"
+                  HorizontalAlignment="Center"/>
+
+                            <Button Grid.Column="1" 
+                Content="+ Ajouter" 
+                Click="AddButtonDirect_Click"
+                Background="#2ECC71" 
+                Foreground="White" 
+                FontWeight="Bold" 
+                Padding="8,3" 
+                BorderThickness="0" 
+                Margin="5,0,10,0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+                    </Border>
 
                     <!-- Liste des fichiers RDS -->
                     <ListView Name="FileList"

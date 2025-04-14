@@ -1,11 +1,11 @@
-﻿// Ajout des gestionnaires d'événements dans MainWindow.xaml.cs
+﻿using System.Linq;
 using System.Windows;
-using AccesClientWPF.Models;
-using AccesClientWPF.ViewModels;
 using System.Windows.Controls;
 using System.Windows.Input;
 using System.Windows.Media;
 using AccesClientWPF.Helpers;
+using AccesClientWPF.Models;
+using AccesClientWPF.ViewModels;
 
 namespace AccesClientWPF.Views
 {
@@ -14,6 +14,7 @@ namespace AccesClientWPF.Views
         public MainWindow()
         {
             InitializeComponent();
+            // Le DataContext est bien assigné à MainViewModel qui contient désormais FilteredClients pour afficher la liste filtrée.
             DataContext = new MainViewModel();
         }
 
@@ -59,9 +60,11 @@ namespace AccesClientWPF.Views
 
         private void MainScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
-            ScrollViewer scv = (ScrollViewer)sender;
-            scv.ScrollToVerticalOffset(scv.VerticalOffset - e.Delta / 3);
-            e.Handled = true;
+            if (sender is ScrollViewer scv)
+            {
+                scv.ScrollToVerticalOffset(scv.VerticalOffset - e.Delta / 3);
+                e.Handled = true;
+            }
         }
 
         private void CopyWindowsUsername_Click(object sender, RoutedEventArgs e)
@@ -86,11 +89,12 @@ namespace AccesClientWPF.Views
             }
         }
 
-        // Nouveaux gestionnaires pour le menu contextuel
+        // Gestionnaire pour l'ajout via le menu contextuel
         private void AddContextMenu_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is MainViewModel viewModel)
             {
+                // Utilisez la propriété SelectedClient qui reste la même (la liste affichée est désormais FilteredClients).
                 if (viewModel.SelectedClient == null)
                 {
                     MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un élément.",
@@ -101,6 +105,7 @@ namespace AccesClientWPF.Views
             }
         }
 
+        // Gestionnaire pour la modification via le menu contextuel
         private void EditContextMenu_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is MainViewModel viewModel)
@@ -115,6 +120,7 @@ namespace AccesClientWPF.Views
             }
         }
 
+        // Gestionnaire pour la suppression via le menu contextuel
         private void DeleteContextMenu_Click(object sender, RoutedEventArgs e)
         {
             if (DataContext is MainViewModel viewModel && viewModel.SelectedFile != null)
@@ -130,16 +136,18 @@ namespace AccesClientWPF.Views
                     // Obtenir la base de données actuelle
                     var database = viewModel.LoadDatabase();
 
-                    // Trouver et supprimer le fichier sélectionné
+                    // Recherche du fichier à supprimer dans la collection.
                     var fileToRemove = database.Files.FirstOrDefault(f =>
-                        f.Name == viewModel.SelectedFile.Name && f.Client == viewModel.SelectedFile.Client);
+                        f.Name == viewModel.SelectedFile.Name &&
+                        // Vous pouvez conserver f.Client puisque SelectedClient est identique (la liste visible est désormais filtrée via FilteredClients).
+                        f.Client == viewModel.SelectedFile.Client);
 
                     if (fileToRemove != null)
                     {
                         database.Files.Remove(fileToRemove);
                         viewModel.SaveDatabase(database);
 
-                        // Recharger les fichiers pour le client sélectionné
+                        // Forcer le rechargement de la sélection pour rafraîchir la vue.
                         var currentClient = viewModel.SelectedClient;
                         if (currentClient != null)
                         {
@@ -156,7 +164,22 @@ namespace AccesClientWPF.Views
             }
         }
 
-        // Méthode helper pour trouver un élément visuel enfant
+        private void AddButtonDirect_Click(object sender, RoutedEventArgs e)
+        {
+            // Appel direct à la méthode d'ajout (similaire au menu contextuel)
+            if (DataContext is MainViewModel viewModel)
+            {
+                if (viewModel.SelectedClient == null)
+                {
+                    MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un élément.",
+                        "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+                viewModel.AddFile();
+            }
+        }
+
+        // Méthode helper pour trouver un élément visuel enfant dans l'arborescence
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {
             for (int i = 0; i < VisualTreeHelper.GetChildrenCount(parent); i++)

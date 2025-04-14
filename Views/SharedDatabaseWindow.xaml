@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client 1.2.2 / Partagé"
+        Title="Accès Client 1.3.0 / Partagé"
         Height="600" Width="1000"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
@@ -107,6 +107,39 @@
                               IsChecked="{Binding ShowCredentials, Mode=TwoWay}" />
                     </StackPanel>
 
+
+                    <Border Background="#34495E" Margin="10,5,10,10" Padding="15,10" CornerRadius="8">
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
+
+                            <TextBlock Grid.Column="0" Text="{Binding SelectedClient.Name}" 
+                  FontSize="20" 
+                  FontWeight="Bold" 
+                  Foreground="White"
+                  HorizontalAlignment="Center"/>
+
+                            <Button Grid.Column="1" 
+                Content="+ Ajouter" 
+                Click="AddButtonDirect_Click"
+                Background="#2ECC71" 
+                Foreground="White" 
+                FontWeight="Bold" 
+                Padding="8,3" 
+                BorderThickness="0" 
+                Margin="5,0,10,0">
+                                <Button.Template>
+                                    <ControlTemplate TargetType="Button">
+                                        <Border Background="{TemplateBinding Background}" CornerRadius="4" Padding="{TemplateBinding Padding}">
+                                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                                        </Border>
+                                    </ControlTemplate>
+                                </Button.Template>
+                            </Button>
+                        </Grid>
+                    </Border>
                     <!-- Liste des fichiers -->
                     <ListView Name="FileList"
                             ItemsSource="{Binding FilteredFiles}"
@@ -124,6 +157,11 @@
                                 <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
                                     <MenuItem.Icon>
                                         <Path Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                                <MenuItem Header="Test élément" Click="TestConnectionMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M12,2A10,10 0 0,1 22,12A10,10 0 0,1 12,22A10,10 0 0,1 2,12A10,10 0 0,1 12,2M12,4A8,8 0 0,0 4,12A8,8 0 0,0 12,20A8,8 0 0,0 20,12A8,8 0 0,0 12,4M17,12A5,5 0 0,1 12,17A5,5 0 0,1 7,12A5,5 0 0,1 12,7A5,5 0 0,1 17,12M12,9A3,3 0 0,0 9,12A3,3 0 0,0 12,15A3,3 0 0,0 15,12A3,3 0 0,0 12,9Z" Fill="#3498DB" Stretch="Uniform" Width="16" Height="16"/>
                                     </MenuItem.Icon>
                                 </MenuItem>
                                 <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">

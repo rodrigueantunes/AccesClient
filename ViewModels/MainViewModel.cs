@@ -1139,9 +1139,54 @@ namespace AccesClientWPF.ViewModels
 
 
         private ICommand _manageSharedDatabaseCommand;
-       
-        
-        public ICommand ManageSharedDatabaseCommand => _manageSharedDatabaseCommand ??= new RelayCommand(_ => OpenSharedDatabaseWindow());
+
+
+        public ICommand ManageSharedDatabaseCommand => new RelayCommand(_ => ManageSharedDatabase());
+
+
+        private void ManageSharedDatabase()
+        {
+            // Mémoriser le client sélectionné avant l'ouverture
+            string previousClientName = SelectedClient?.Name;
+
+            var sharedDbWindow = new SharedDatabaseWindow();
+            sharedDbWindow.Owner = Application.Current.MainWindow;
+
+            // Ouvrir la fenêtre de gestion des bases partagées
+            sharedDbWindow.ShowDialog();
+
+            // Après fermeture, recharger la base principale
+            ReloadDatabase();
+
+            // Restaurer la sélection précédente si possible
+            if (!string.IsNullOrEmpty(previousClientName))
+            {
+                SelectedClient = Clients.FirstOrDefault(c => c.Name == previousClientName);
+            }
+        }
+
+        // Méthode de rechargement complet des données
+        private void ReloadDatabase()
+        {
+            var loadedDatabase = LoadDatabase();
+
+            // Mise à jour complète des collections
+            Clients.Clear();
+            foreach (var client in loadedDatabase.Clients)
+                Clients.Add(client);
+
+            FilteredFiles.Clear();
+            if (SelectedClient != null)
+            {
+                foreach (var file in loadedDatabase.Files.Where(f => f.Client == SelectedClient.Name))
+                    FilteredFiles.Add(file);
+            }
+
+            // Rafraîchir la sélection pour mettre à jour l'affichage
+            var tempSelection = SelectedClient;
+            SelectedClient = null;
+            SelectedClient = tempSelection;
+        }
 
         private void OpenSharedDatabaseWindow()
         {
