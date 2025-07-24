@@ -71,7 +71,7 @@ namespace AccesClientWPF.Views
         {
             if (sender is Button button && button.Tag is string username && !string.IsNullOrEmpty(username))
             {
-                Clipboard.SetText(username);
+                Helpers.ClipboardHelper.CopyPlainText(username);
                 MessageBox.Show("Nom d'utilisateur Windows copié dans le presse-papiers.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
             }
         }
@@ -83,7 +83,7 @@ namespace AccesClientWPF.Views
                 if (!string.IsNullOrEmpty(file.WindowsPassword))
                 {
                     string decryptedPassword = EncryptionHelper.Decrypt(file.WindowsPassword);
-                    Clipboard.SetText(decryptedPassword);
+                    Helpers.ClipboardHelper.CopyPlainText(decryptedPassword);
                     MessageBox.Show("Mot de passe Windows copié dans le presse-papiers.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }

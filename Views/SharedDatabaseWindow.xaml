@@ -3,7 +3,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client 1.3.0 / Partagé"
+        Title="Accès Client 1.3.1 / Partagé"
         Height="600" Width="1000"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
