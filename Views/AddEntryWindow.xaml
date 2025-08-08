@@ -50,6 +50,7 @@
             <ComboBoxItem Content="Anydesk" Tag="AnyDesk"/>
             <ComboBoxItem Content="Dossier" Tag="Dossier"/>
             <ComboBoxItem Content="Fichier" Tag="Fichier"/>
+            <ComboBoxItem Content="Mot de passe" Tag="MotDePasse"/>
         </ComboBox>
 
         <TextBlock Text="Client :" Grid.Row="2" FontWeight="Bold"/>
@@ -113,9 +114,18 @@
                    Visibility="Collapsed" HorizontalAlignment="Left"/>
         </StackPanel>
 
+        <!-- Section Mot de passe -->
+        <StackPanel x:Name="PanelPassword" Grid.Row="3" Orientation="Vertical" Visibility="Collapsed">
+            <TextBlock Text="Nom d'utilisateur :" FontWeight="Bold"/>
+            <TextBox x:Name="TxtPasswordUser" Margin="100,0,0,5"/>
+            <TextBlock Text="Mot de passe :" FontWeight="Bold"/>
+            <PasswordBox x:Name="TxtPasswordPass" Margin="100,0,0,5"/>
+        </StackPanel>
+
         <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
             <Button Content="Annuler" Width="80" Margin="5" Click="Cancel_Click" Style="{StaticResource RoundedButton}"/>
             <Button Content="Enregistrer" Width="80" Margin="5" Click="Save_Click" Style="{StaticResource RoundedButton}"/>
         </StackPanel>
+
     </Grid>
 </Window>

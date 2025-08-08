@@ -9,6 +9,9 @@
         public string CustomIconPath { get; set; }
         public string WindowsUsername { get; set; }
         public string WindowsPassword { get; set; }
+        public string Username { get; set; } 
+        public string Password { get; set; } 
+
     }
 
     public enum FileType
@@ -17,6 +20,7 @@
         VPN,
         AnyDesk,
         Dossier,
-        Fichier  // Nouveau type pour les fichiers
+        Fichier,
+        MotDePasse
     }
 }

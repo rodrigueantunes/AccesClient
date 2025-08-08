@@ -9,6 +9,7 @@ using AccesClientWPF.Models;
 using Newtonsoft.Json;
 using AccesClientWPF.Helpers;
 using System.Windows.Media.Imaging;
+using System.Windows.Controls.Primitives;
 
 namespace AccesClientWPF.Views
 {
@@ -21,53 +22,92 @@ namespace AccesClientWPF.Views
 
         public FileModel FileEntry { get; private set; }
 
+        // "MotDePasse" si on vient du bouton orange (optionnel)
+        public string PresetType { get; set; }
+
         public AddEntryWindow(ObservableCollection<ClientModel> clients, ClientModel selectedClient = null, FileModel editingFile = null)
         {
             InitializeComponent();
-            _clients = clients;
+
+            // Défenses anti-null
+            _clients = clients ?? new ObservableCollection<ClientModel>();
+
+            // Si pas de selectedClient mais on édite un élément → le déduire par nom
+            if (selectedClient == null && editingFile != null && !string.IsNullOrEmpty(editingFile.Client))
+            {
+                selectedClient = _clients.FirstOrDefault(c => c.Name == editingFile.Client);
+            }
+
             CmbClient.ItemsSource = _clients;
-            CmbClient.SelectedItem = selectedClient;
+            if (selectedClient != null)
+                CmbClient.SelectedItem = _clients.FirstOrDefault(c => c.Name == selectedClient.Name);
+            else if (_clients.Count > 0 && CmbClient.SelectedItem == null)
+                CmbClient.SelectedIndex = 0;
+
+            // Si on a reçu un selectedClient, on verrouille le choix (comportement d'origine)
             CmbClient.IsEnabled = selectedClient == null;
+
             _editingFile = editingFile;
             LoadFiles();
 
+            // Pré-remplissage en mode édition
             if (_editingFile != null)
             {
-                TxtName.Text = _editingFile.Name;
-                CmbType.SelectedItem = CmbType.Items.Cast<ComboBoxItem>().FirstOrDefault(item => item.Tag.ToString() == _editingFile.Type);
+                TxtName.Text = _editingFile.Name ?? string.Empty;
 
-                var credentials = _editingFile.FullPath.Split(':');
-
-                if (_editingFile.Type == "RDS")
+                // Sélection du type en sécurité (Tag peut être null)
+                var typeItem = CmbType.Items.OfType<ComboBoxItem>()
+                                    .FirstOrDefault(i => string.Equals(i.Tag as string, _editingFile.Type, StringComparison.OrdinalIgnoreCase));
+                if (typeItem != null)
                 {
-                    TxtIpDns.Text = credentials.ElementAtOrDefault(0);
-                    TxtUsername.Text = credentials.ElementAtOrDefault(1);
+                    CmbType.SelectedItem = typeItem;
+                }
+                else if (!string.IsNullOrEmpty(_editingFile.Type))
+                {
+                    // fallback : sélectionne rien si type inconnu, et les panneaux resteront cachés
+                }
+
+                // Pour éviter le crash : on ne split que si FullPath est non vide
+                string[] credentials = Array.Empty<string>();
+                if (!string.IsNullOrEmpty(_editingFile.FullPath))
+                    credentials = _editingFile.FullPath.Split(':');
+
+                // Remplissage selon le type
+                if (string.Equals(_editingFile.Type, "RDS", StringComparison.OrdinalIgnoreCase))
+                {
+                    TxtIpDns.Text = credentials.ElementAtOrDefault(0) ?? string.Empty;
+                    TxtUsername.Text = credentials.ElementAtOrDefault(1) ?? string.Empty;
+                    // volontairement vide en édition pour que l'utilisateur resaisisse si besoin
                     TxtPassword.Password = string.Empty;
                 }
-                else if (_editingFile.Type == "AnyDesk")
+                else if (string.Equals(_editingFile.Type, "AnyDesk", StringComparison.OrdinalIgnoreCase))
                 {
-                    TxtAnydeskId.Text = credentials.ElementAtOrDefault(0);
-                    TxtAnydeskPassword.Password = string.Empty; // Toujours vide
+                    TxtAnydeskId.Text = credentials.ElementAtOrDefault(0) ?? string.Empty;
+                    // On laisse vide pour ne pas écraser si l'utilisateur ne retape rien
+                    TxtAnydeskPassword.Password = string.Empty;
 
-                    // Charger les informations Windows
+                    // Champs Windows
                     TxtWindowsUsername.Text = _editingFile.WindowsUsername ?? string.Empty;
-                    // Ne pas effacer le mot de passe Windows si présent
                     if (!string.IsNullOrEmpty(_editingFile.WindowsPassword))
                     {
-                        TxtWindowsPassword.Password = EncryptionHelper.Decrypt(_editingFile.WindowsPassword);
+                        var dec = EncryptionHelper.Decrypt(_editingFile.WindowsPassword);
+                        if (!string.IsNullOrEmpty(dec))
+                            TxtWindowsPassword.Password = dec;
+                        else
+                            TxtWindowsPassword.Password = string.Empty;
                     }
                 }
-                else if (_editingFile.Type == "VPN")
+                else if (string.Equals(_editingFile.Type, "VPN", StringComparison.OrdinalIgnoreCase))
                 {
-                    TxtVpnPath.Text = _editingFile.FullPath;
+                    TxtVpnPath.Text = _editingFile.FullPath ?? string.Empty;
                 }
-                else if (_editingFile.Type == "Dossier")
+                else if (string.Equals(_editingFile.Type, "Dossier", StringComparison.OrdinalIgnoreCase))
                 {
-                    TxtFolderPath.Text = _editingFile.FullPath;
+                    TxtFolderPath.Text = _editingFile.FullPath ?? string.Empty;
                 }
-                else if (_editingFile.Type == "Fichier")
+                else if (string.Equals(_editingFile.Type, "Fichier", StringComparison.OrdinalIgnoreCase))
                 {
-                    TxtFilePath.Text = _editingFile.FullPath;
+                    TxtFilePath.Text = _editingFile.FullPath ?? string.Empty;
                     TxtIconPath.Text = _editingFile.CustomIconPath ?? string.Empty;
 
                     if (!string.IsNullOrEmpty(_editingFile.CustomIconPath) && File.Exists(_editingFile.CustomIconPath))
@@ -78,20 +118,59 @@ namespace AccesClientWPF.Views
                             IconPreview.Source = bitmap;
                             IconPreview.Visibility = Visibility.Visible;
                         }
-                        catch { }
+                        catch { /* pas grave */ }
                     }
                 }
+                else if (string.Equals(_editingFile.Type, "MotDePasse", StringComparison.OrdinalIgnoreCase))
+                {
+                    // Forcer la sélection / verrouiller le type
+                    SetTypeMotDePasse();
+
+                    // Remplir les champs
+                    TxtPasswordUser.Text = _editingFile.WindowsUsername ?? string.Empty;
+
+                    if (!string.IsNullOrEmpty(_editingFile.WindowsPassword))
+                    {
+                        var dec = EncryptionHelper.Decrypt(_editingFile.WindowsPassword);
+                        TxtPasswordPass.Password = dec ?? string.Empty;
+                    }
+                    else
+                    {
+                        TxtPasswordPass.Password = string.Empty;
+                    }
+                }
+            }
+            else
+            {
+                // Nouveau : si on a un type imposé ("MotDePasse" côté droit), l'appliquer
+                if (string.Equals(PresetType, "MotDePasse", StringComparison.OrdinalIgnoreCase))
+                    SetTypeMotDePasse();
+                else if (CmbType.Items.Count > 0 && CmbType.SelectedIndex < 0)
+                    CmbType.SelectedIndex = 0;
             }
         }
 
         private void CmbType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
-            var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag.ToString();
-            PanelRDS.Visibility = selectedType == "RDS" ? Visibility.Visible : Visibility.Collapsed;
-            PanelAnyDesk.Visibility = selectedType == "AnyDesk" ? Visibility.Visible : Visibility.Collapsed;
-            PanelVPN.Visibility = selectedType == "VPN" ? Visibility.Visible : Visibility.Collapsed;
-            PanelFolder.Visibility = selectedType == "Dossier" ? Visibility.Visible : Visibility.Collapsed;
-            PanelFile.Visibility = selectedType == "Fichier" ? Visibility.Visible : Visibility.Collapsed;
+            var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag as string;
+
+            PanelRDS.Visibility = string.Equals(selectedType, "RDS", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+            PanelAnyDesk.Visibility = string.Equals(selectedType, "AnyDesk", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+            PanelVPN.Visibility = string.Equals(selectedType, "VPN", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+            PanelFolder.Visibility = string.Equals(selectedType, "Dossier", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+            PanelFile.Visibility = string.Equals(selectedType, "Fichier", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+            PanelPassword.Visibility = string.Equals(selectedType, "MotDePasse", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+        }
+
+        public void SetTypeMotDePasse()
+        {
+            var item = CmbType.Items.OfType<ComboBoxItem>().FirstOrDefault(i => string.Equals(i.Tag as string, "MotDePasse", StringComparison.OrdinalIgnoreCase));
+            if (item != null)
+            {
+                CmbType.SelectedItem = item;
+                CmbType.IsEnabled = false;
+                PanelPassword.Visibility = Visibility.Visible; // sécurité
+            }
         }
 
         private void LoadFiles()
@@ -112,47 +191,68 @@ namespace AccesClientWPF.Views
                 return;
             }
 
-            var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag.ToString();
+            var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag as string ?? string.Empty;
             string fullPath = string.Empty;
             string customIconPath = string.Empty;
+
+            // Ces deux-là servent pour AnyDesk / MotDePasse (et potentiellement autres)
             string windowsUsername = string.Empty;
             string windowsPassword = string.Empty;
 
-            if (selectedType == "RDS")
+            if (string.Equals(selectedType, "RDS", StringComparison.OrdinalIgnoreCase))
             {
-                string encryptedPassword = EncryptionHelper.Encrypt(TxtPassword.Password);
+                string encryptedPassword = EncryptionHelper.Encrypt(TxtPassword.Password ?? string.Empty);
                 fullPath = $"{TxtIpDns.Text}:{TxtUsername.Text}:{encryptedPassword}";
             }
-            else if (selectedType == "AnyDesk")
+            else if (string.Equals(selectedType, "AnyDesk", StringComparison.OrdinalIgnoreCase))
             {
-                string encryptedPassword = EncryptionHelper.Encrypt(TxtAnydeskPassword.Password);
+                string encryptedPassword = EncryptionHelper.Encrypt(TxtAnydeskPassword.Password ?? string.Empty);
                 fullPath = $"{TxtAnydeskId.Text}:{encryptedPassword}";
 
-                // Sauvegarder les informations Windows
-                windowsUsername = TxtWindowsUsername.Text;
-                // Si un mot de passe Windows est entré, l'encrypter
+                windowsUsername = TxtWindowsUsername.Text ?? string.Empty;
+
+                // Si le champ est vide et qu'on édite, conserver l'ancien chiffré
                 if (!string.IsNullOrEmpty(TxtWindowsPassword.Password))
                 {
                     windowsPassword = EncryptionHelper.Encrypt(TxtWindowsPassword.Password);
                 }
-                // Si aucun mot de passe n'est entré mais qu'on édite, conserver l'ancien
                 else if (_editingFile != null && !string.IsNullOrEmpty(_editingFile.WindowsPassword))
                 {
                     windowsPassword = _editingFile.WindowsPassword;
                 }
             }
-            else if (selectedType == "VPN")
+            else if (string.Equals(selectedType, "VPN", StringComparison.OrdinalIgnoreCase))
             {
-                fullPath = TxtVpnPath.Text;
+                fullPath = TxtVpnPath.Text ?? string.Empty;
             }
-            else if (selectedType == "Dossier")
+            else if (string.Equals(selectedType, "Dossier", StringComparison.OrdinalIgnoreCase))
             {
-                fullPath = TxtFolderPath.Text;
+                fullPath = TxtFolderPath.Text ?? string.Empty;
             }
-            else if (selectedType == "Fichier")
+            else if (string.Equals(selectedType, "Fichier", StringComparison.OrdinalIgnoreCase))
             {
-                fullPath = TxtFilePath.Text;
-                customIconPath = TxtIconPath.Text;
+                fullPath = TxtFilePath.Text ?? string.Empty;
+                customIconPath = TxtIconPath.Text ?? string.Empty;
+            }
+            else if (string.Equals(selectedType, "MotDePasse", StringComparison.OrdinalIgnoreCase))
+            {
+                // Pas de FullPath pour ce type
+                windowsUsername = (TxtPasswordUser.Text ?? string.Empty).Trim();
+
+                // Si on saisit un mot de passe → chiffrer
+                if (!string.IsNullOrWhiteSpace(TxtPasswordPass.Password))
+                {
+                    windowsPassword = EncryptionHelper.Encrypt(TxtPasswordPass.Password.Trim());
+                }
+                // Sinon, si on édite et il y en a déjà un, on le conserve
+                else if (_editingFile != null && !string.IsNullOrEmpty(_editingFile.WindowsPassword))
+                {
+                    windowsPassword = _editingFile.WindowsPassword;
+                }
+                else
+                {
+                    windowsPassword = string.Empty;
+                }
             }
 
             var newEntry = new FileModel
@@ -167,18 +267,22 @@ namespace AccesClientWPF.Views
             };
 
             FileEntry = newEntry;
+
+            // ⚠️ NE PAS réécraser ici pour MotDePasse : on a déjà géré la conservation de l'ancien si champ vide.
+            // (Ton ancien code ré-encryptait systématiquement le PasswordBox, effaçant l'ancien si vide.)
+
             DialogResult = true;
             Close();
         }
 
-        private Models.DatabaseModel LoadDatabase()
+        private AccesClientWPF.Models.DatabaseModel LoadDatabase()
         {
             if (File.Exists(_jsonFilePath))
             {
                 var jsonData = File.ReadAllText(_jsonFilePath);
-                return JsonConvert.DeserializeObject<Models.DatabaseModel>(jsonData) ?? new Models.DatabaseModel();
+                return JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(jsonData) ?? new AccesClientWPF.Models.DatabaseModel();
             }
-            return new Models.DatabaseModel();
+            return new AccesClientWPF.Models.DatabaseModel();
         }
 
         private void BrowseVpnExecutable_Click(object sender, RoutedEventArgs e)
@@ -216,7 +320,7 @@ namespace AccesClientWPF.Views
             {
                 TxtIconPath.Text = openFileDialog.FileName;
 
-                // Afficher l'aperçu de l'icône
+                // Aperçu
                 try
                 {
                     BitmapImage bitmap = new BitmapImage(new Uri(openFileDialog.FileName));

@@ -179,6 +179,26 @@ namespace AccesClientWPF.Views
             }
         }
 
+
+        private void AddPasswordFromRight_Click(object sender, RoutedEventArgs e)
+        {
+            if (DataContext is not MainViewModel vm || vm.SelectedClient == null) return;
+
+            var win = new AddEntryWindow(vm.Clients, vm.SelectedClient);
+            win.SetTypeMotDePasse();
+
+            if (win.ShowDialog() == true && win.FileEntry != null)
+            {
+                win.FileEntry.Type = "MotDePasse";
+
+                var db = vm.LoadDatabase();
+                db.Files.Add(win.FileEntry);
+                vm.SaveDatabase(db);
+                vm.LoadFilesForSelectedClient();
+            }
+        }
+
+
         // Méthode helper pour trouver un élément visuel enfant dans l'arborescence
         private static T FindVisualChild<T>(DependencyObject parent) where T : DependencyObject
         {

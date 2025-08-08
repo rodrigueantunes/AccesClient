@@ -39,6 +39,16 @@ namespace AccesClientWPF.Views
             this.Loaded += SharedDatabaseWindow_Loaded;
         }
 
+        private static T FindParent<T>(DependencyObject child) where T : DependencyObject
+        {
+            while (child != null)
+            {
+                if (child is T typed) return typed;
+                child = VisualTreeHelper.GetParent(child);
+            }
+            return null;
+        }
+
         private void SharedDatabaseWindow_Loaded(object sender, RoutedEventArgs e)
         {
             // Rechercher les boutons par leur nom après le chargement de la fenêtre
@@ -771,65 +781,85 @@ namespace AccesClientWPF.Views
             return false; // L'utilisateur a annulé
         }
 
+        private void MoveUpContextMenu_Click(object sender, RoutedEventArgs e)
+        {
+            var mi = sender as MenuItem;
+            var ctx = mi?.Parent as ContextMenu;
+            if (ctx?.PlacementTarget is FrameworkElement fe && fe.DataContext is FileModel item)
+            {
+                _viewModel.MovePasswordUpCommand.Execute(item);
+            }
+        }
+
+        private void MoveDownContextMenu_Click(object sender, RoutedEventArgs e)
+        {
+            var mi = sender as MenuItem;
+            var ctx = mi?.Parent as ContextMenu;
+            if (ctx?.PlacementTarget is FrameworkElement fe && fe.DataContext is FileModel item)
+            {
+                _viewModel.MovePasswordDownCommand.Execute(item);
+            }
+        }
+
+
         private void FileList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // S'assurer que le menu contextuel s'affiche même si on clique dans une zone vide
-            // Récupérer le menu contextuel
+            // 1) sélectionner l'item sous la souris
+            var dep = (DependencyObject)e.OriginalSource;
+            var lvi = FindParent<ListViewItem>(dep);
+            if (lvi != null)
+            {
+                lvi.IsSelected = true;            // => met aussi SelectedItem
+                FileList.Focus();
+            }
+
+            // 2) Récupérer le menu + activer/désactiver selon sélection
             ContextMenu menu = FileList.ContextMenu;
             if (menu == null) return;
 
-            // La première option "Ajouter un élément" est toujours active si un client est sélectionné
             bool clientSelected = _viewModel.SelectedClient != null;
-
-            // Les autres options ne sont actives que si un élément est également sélectionné
             bool itemSelected = FileList.SelectedItem != null;
 
-            // Activer/désactiver les options en conséquence
-            if (menu.Items.Count > 0) ((MenuItem)menu.Items[0]).IsEnabled = clientSelected;
-            if (menu.Items.Count > 1) ((MenuItem)menu.Items[1]).IsEnabled = itemSelected;
-            if (menu.Items.Count > 2) ((MenuItem)menu.Items[2]).IsEnabled = itemSelected;
-            if (menu.Items.Count > 3) ((MenuItem)menu.Items[3]).IsEnabled = itemSelected;
+            // Ordre attendu : 0 Ajouter, 1 Modifier, 2 Monter, 3 Descendre, 4 Tester, 5 Supprimer
+            if (menu.Items.Count > 0) ((MenuItem)menu.Items[0]).IsEnabled = clientSelected; // Ajouter
+            if (menu.Items.Count > 1) ((MenuItem)menu.Items[1]).IsEnabled = itemSelected;   // Modifier
+            if (menu.Items.Count > 2) ((MenuItem)menu.Items[2]).IsEnabled = itemSelected;   // Monter
+            if (menu.Items.Count > 3) ((MenuItem)menu.Items[3]).IsEnabled = itemSelected;   // Descendre
+            if (menu.Items.Count > 4) ((MenuItem)menu.Items[4]).IsEnabled = itemSelected;   // Tester
+            if (menu.Items.Count > 5) ((MenuItem)menu.Items[5]).IsEnabled = itemSelected;   // Supprimer
 
-            // Si un client est sélectionné, permettre l'ouverture du menu même sans sélection d'élément
+            // 3) ouvrir le menu à l’endroit du clic si un client est sélectionné
             if (clientSelected)
             {
-                // Positionner le menu à l'endroit du clic
                 Point mousePosition = e.GetPosition(FileList);
                 menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Relative;
                 menu.PlacementTarget = FileList;
                 menu.HorizontalOffset = mousePosition.X;
                 menu.VerticalOffset = mousePosition.Y;
                 menu.IsOpen = true;
-
-                // Marquer l'événement comme géré pour éviter d'autres traitements
                 e.Handled = true;
             }
         }
 
         private void FileList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
         {
-            // Récupérer le menu contextuel
             ContextMenu menu = FileList.ContextMenu;
             if (menu == null) return;
 
-            // La première option "Ajouter un élément" est toujours active si un client est sélectionné
             bool clientSelected = _viewModel.SelectedClient != null;
-
-            // Les autres options ne sont actives que si un élément est également sélectionné
             bool itemSelected = FileList.SelectedItem != null;
 
-            // Activer/désactiver les options en conséquence
-            if (menu.Items.Count > 0) ((MenuItem)menu.Items[0]).IsEnabled = clientSelected;
-            if (menu.Items.Count > 1) ((MenuItem)menu.Items[1]).IsEnabled = itemSelected;
-            if (menu.Items.Count > 2) ((MenuItem)menu.Items[2]).IsEnabled = itemSelected;
-            if (menu.Items.Count > 3) ((MenuItem)menu.Items[3]).IsEnabled = itemSelected;
+            if (menu.Items.Count > 0) ((MenuItem)menu.Items[0]).IsEnabled = clientSelected; // Ajouter
+            if (menu.Items.Count > 1) ((MenuItem)menu.Items[1]).IsEnabled = itemSelected;   // Modifier
+            if (menu.Items.Count > 2) ((MenuItem)menu.Items[2]).IsEnabled = itemSelected;   // Monter
+            if (menu.Items.Count > 3) ((MenuItem)menu.Items[3]).IsEnabled = itemSelected;   // Descendre
+            if (menu.Items.Count > 4) ((MenuItem)menu.Items[4]).IsEnabled = itemSelected;   // Tester
+            if (menu.Items.Count > 5) ((MenuItem)menu.Items[5]).IsEnabled = itemSelected;   // Supprimer
 
-            // Si aucun client n'est sélectionné, annuler l'ouverture du menu
-            if (!clientSelected)
-            {
-                e.Handled = true;
-            }
+            if (!clientSelected) e.Handled = true;
         }
+
+
 
         private void AddButtonDirect_Click(object sender, RoutedEventArgs e)
         {
@@ -867,6 +897,11 @@ namespace AccesClientWPF.Views
             {
                 MessageBox.Show($"Erreur lors de l'ouverture du fichier : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
+        }
+
+        private void Button_Click(object sender, RoutedEventArgs e)
+        {
+
         }
     }
 }
