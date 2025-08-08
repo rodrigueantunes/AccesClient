@@ -93,7 +93,7 @@ AccesClient.exe
 
 ### ➕ Ajouter un client
 
-![AddClient](docs/screenshots/addclient.png)
+<img width="686" height="493" alt="image_2025-08-08_193626438" src="https://github.com/user-attachments/assets/06cc31d8-9706-46b0-a3e0-8b4e233fdf0d" />
 
 1. Cliquer sur **Ajouter client**
 2. Remplir les champs
@@ -103,7 +103,7 @@ AccesClient.exe
 
 ### 📂 Ajouter un élément
 
-![AddEntry](docs/screenshots/addentry.png)
+<img width="686" height="512" alt="image_2025-08-08_193746206" src="https://github.com/user-attachments/assets/bbedd63f-6304-4637-a213-33d6bfa79da3" />
 
 1. Sélectionner le client
 2. Cliquer sur **+ Ajouter**
@@ -182,3 +182,4 @@ AccesClient/
 ## 👨‍💻 Auteur
 
 * **Rodrigue Antunes Barata** — Développeur principal
+
