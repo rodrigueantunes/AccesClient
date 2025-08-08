@@ -8,7 +8,7 @@
 // </auto-generated>
 //------------------------------------------------------------------------------
 
-namespace AccesClientWPF.Properties {
+namespace Accès_client.Properties {
     using System;
     
     
@@ -39,7 +39,7 @@ namespace AccesClientWPF.Properties {
         internal static global::System.Resources.ResourceManager ResourceManager {
             get {
                 if (object.ReferenceEquals(resourceMan, null)) {
-                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("AccesClientWPF.Properties.Resources", typeof(Resources).Assembly);
+                    global::System.Resources.ResourceManager temp = new global::System.Resources.ResourceManager("Accès_client.Properties.Resources", typeof(Resources).Assembly);
                     resourceMan = temp;
                 }
                 return resourceMan;
@@ -57,6 +57,54 @@ namespace AccesClientWPF.Properties {
             }
             set {
                 resourceCulture = value;
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap any_bg {
+            get {
+                object obj = ResourceManager.GetObject("any_bg", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+
+        internal static System.Drawing.Bitmap rds_bg
+        {
+            get
+            {
+                object obj = ResourceManager.GetObject("rds_bg", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+
+        internal static System.Drawing.Bitmap vpn_bg
+        {
+            get
+            {
+                object obj = ResourceManager.GetObject("vpn_bg", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap KOLO_VoluPack {
+            get {
+                object obj = ResourceManager.GetObject("KOLO_VoluPack", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
+            }
+        }
+        
+        /// <summary>
+        ///   Recherche une ressource localisée de type System.Drawing.Bitmap.
+        /// </summary>
+        internal static System.Drawing.Bitmap volume_software_sans_detour_h80 {
+            get {
+                object obj = ResourceManager.GetObject("volume-software-sans-detour-h80", resourceCulture);
+                return ((System.Drawing.Bitmap)(obj));
             }
         }
     }
