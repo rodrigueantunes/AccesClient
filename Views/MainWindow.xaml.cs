@@ -67,27 +67,6 @@ namespace AccesClientWPF.Views
             }
         }
 
-        private void CopyWindowsUsername_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button && button.Tag is string username && !string.IsNullOrEmpty(username))
-            {
-                Helpers.ClipboardHelper.CopyPlainText(username);
-                MessageBox.Show("Nom d'utilisateur Windows copié dans le presse-papiers.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
-            }
-        }
-
-        private void CopyWindowsPassword_Click(object sender, RoutedEventArgs e)
-        {
-            if (sender is Button button && button.Tag is FileModel file)
-            {
-                if (!string.IsNullOrEmpty(file.WindowsPassword))
-                {
-                    string decryptedPassword = EncryptionHelper.Decrypt(file.WindowsPassword);
-                    Helpers.ClipboardHelper.CopyPlainText(decryptedPassword);
-                    MessageBox.Show("Mot de passe Windows copié dans le presse-papiers.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
-                }
-            }
-        }
 
         // Gestionnaire pour l'ajout via le menu contextuel
         private void AddContextMenu_Click(object sender, RoutedEventArgs e)

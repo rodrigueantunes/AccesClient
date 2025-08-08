@@ -4,7 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client 1.4.1 / Partagé"
+        Title="Accès Client 1.4.2 / Partagé"
         Height="750" Width="1300"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
@@ -390,5 +390,12 @@
                 </ScrollViewer>
             </DockPanel>
         </Border>
+        <!-- Flèches de tri (zone principale) -->
+        <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10">
+            <Button Content="&#x2191;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40"
+             FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveUpFileCommand}" Margin="0,0,10,0"/>
+            <Button Content="&#x2193;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40"
+             FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveDownFileCommand}" Margin="0,0,10,0"/>
+        </StackPanel>
     </Grid>
 </Window>

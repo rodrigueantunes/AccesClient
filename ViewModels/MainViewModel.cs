@@ -15,6 +15,7 @@ using Microsoft.Win32;
 using System.Collections.Generic;
 using System.Threading.Tasks;
 using System.Timers;
+using System.Windows.Controls;
 
 namespace AccesClientWPF.ViewModels
 {
@@ -66,6 +67,27 @@ namespace AccesClientWPF.ViewModels
             ShowCopyToast("Mot de passe copié");
         });
 
+        private void CopyWindowsUsername_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is string username && !string.IsNullOrEmpty(username))
+            {
+                Helpers.ClipboardHelper.CopyPlainText(username);
+                ShowCopyToast("Nom d'utilisateur copié");
+            }
+        }
+
+        private void CopyWindowsPassword_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is Button button && button.Tag is FileModel file)
+            {
+                if (!string.IsNullOrEmpty(file.WindowsPassword))
+                {
+                    string decryptedPassword = EncryptionHelper.Decrypt(file.WindowsPassword);
+                    Helpers.ClipboardHelper.CopyPlainText(decryptedPassword);
+                    ShowCopyToast("Mot de passe copié");
+                }
+            }
+        }
 
 
         private ClientModel selectedClient;
@@ -381,7 +403,7 @@ namespace AccesClientWPF.ViewModels
 
         private System.Timers.Timer _copyToastTimer;
 
-        private void ShowCopyToast(string text)
+        public void ShowCopyToast(string text)
         {
             CopyToastText = text;
             IsCopyToastVisible = true;

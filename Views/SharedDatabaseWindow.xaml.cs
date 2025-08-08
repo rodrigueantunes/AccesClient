@@ -120,7 +120,7 @@ namespace AccesClientWPF.Views
                     _currentFilePath = selectedFilePath;
                     _originalFileName = Path.GetFileNameWithoutExtension(_currentFilePath);
 
-                    this.Title = $"Accès Client 1.3.0 / Partagé ({_originalFileName})";
+                    this.Title = $"Accès Client 1.4.2 / Partagé ({_originalFileName})";
 
                     var jsonData = File.ReadAllText(_currentFilePath);
                     var importedDatabase = JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(jsonData);

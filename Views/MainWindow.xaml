@@ -4,7 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client 1.4.1" Height="750" Width="1300"
+        Title="Accès Client 1.4.2" Height="750" Width="1300"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
 
@@ -209,35 +209,40 @@
 
                                             <!-- Utilisateur -->
                                             <StackPanel Grid.Column="0" Orientation="Horizontal"
-                                                        Visibility="{Binding WindowsUsername, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+            Visibility="{Binding WindowsUsername, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
                                                 <TextBlock Text="Utilisateur Windows:" VerticalAlignment="Center"
-                                                           FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+               FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
                                                 <TextBlock Text="{Binding WindowsUsername}" VerticalAlignment="Center"
-                                                           FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
-                                                           Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+               FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
+               Visibility="{Binding DataContext.ShowCredentials,
+                                    RelativeSource={RelativeSource AncestorType=Window},
+                                    Converter={StaticResource BooleanToVisibilityConverter}}"/>
                                                 <Button Content="📋" Width="25" Height="25" Margin="2"
-                                                        ToolTip="Copier le nom d'utilisateur"
-                                                        Click="CopyWindowsUsername_Click"
-                                                        Tag="{Binding WindowsUsername}"
-                                                        Style="{StaticResource CopyButton}"/>
+            ToolTip="Copier le nom d'utilisateur"
+            Command="{Binding DataContext.CopyUsernameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+            CommandParameter="{Binding WindowsUsername}"
+            Style="{StaticResource CopyButton}"/>
                                             </StackPanel>
 
                                             <!-- Mot de passe -->
                                             <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="15,0,0,0"
-                                                        Visibility="{Binding WindowsPassword, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+            Visibility="{Binding WindowsPassword, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
                                                 <TextBlock Text="Mot de passe Windows:" VerticalAlignment="Center"
-                                                           FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+               FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
                                                 <TextBlock VerticalAlignment="Center"
-                                                           FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
-                                                           Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
-                                                    <Run Text="{Binding WindowsPassword, Converter={StaticResource DecryptPasswordConverter}, Mode=OneWay}"/>
+               FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
+               Visibility="{Binding DataContext.ShowCredentials,
+                                    RelativeSource={RelativeSource AncestorType=Window},
+                                    Converter={StaticResource BooleanToVisibilityConverter}}">
+        <Run Text="{Binding WindowsPassword, Converter={StaticResource DecryptPasswordConverter}, Mode=OneWay}"/>
                                                 </TextBlock>
                                                 <Button Content="📋" Width="25" Height="25" Margin="5,0,0,0"
-                                                        ToolTip="Copier le mot de passe"
-                                                        Click="CopyWindowsPassword_Click"
-                                                        Tag="{Binding}"
-                                                        Style="{StaticResource CopyButton}"/>
+            ToolTip="Copier le mot de passe"
+            Command="{Binding DataContext.CopyPasswordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+            CommandParameter="{Binding WindowsPassword}"
+            Style="{StaticResource CopyButton}"/>
                                             </StackPanel>
+
                                         </Grid>
                                     </StackPanel>
                                 </Border>
@@ -399,22 +404,22 @@
                     </ScrollViewer>
                 </DockPanel>
             </Border>
-            <!-- Toast de confirmation de copie -->
-            <Border x:Name="CopyToast"
-        Background="#323232"
-        CornerRadius="6"
-        Padding="10"
-        HorizontalAlignment="Right"
-        VerticalAlignment="Top"
-        Margin="0,15,15,0"
-        Opacity="0.95"
-        Visibility="{Binding IsCopyToastVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
-                <TextBlock Text="{Binding CopyToastText}"
-               Foreground="White"
-               FontWeight="SemiBold" />
-            </Border>
-
         </Grid>
+
+        <!-- Toast de confirmation de copie -->
+        <Border x:Name="CopyToast"
+Background="#323232"
+CornerRadius="6"
+Padding="10"
+HorizontalAlignment="Right"
+VerticalAlignment="Top"
+Margin="0,15,15,0"
+Opacity="0.95"
+Visibility="{Binding IsCopyToastVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+            <TextBlock Text="{Binding CopyToastText}"
+       Foreground="White"
+       FontWeight="SemiBold" />
+        </Border>
 
         <!-- Flèches de tri (zone principale) -->
         <StackPanel Grid.Column="0" Orientation="Vertical" VerticalAlignment="Center" HorizontalAlignment="Right" Margin="10">
