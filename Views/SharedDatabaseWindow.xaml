@@ -4,7 +4,7 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client 1.4.2 / Partagé"
+        Title="Accès Client 1.4.3 / Partagé"
         Height="750" Width="1300"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
@@ -61,7 +61,7 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <ColumnDefinition Width="330"/>
+            <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
         <!-- Colonne gauche -->
@@ -132,13 +132,15 @@
                     </Border>
 
                     <ListView Name="FileList"
-                              ItemsSource="{Binding FilteredFiles}"
-                              SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
-                              MouseDoubleClick="FileList_MouseDoubleClick"
-                              Background="Transparent" BorderThickness="0"
-                              ContextMenuOpening="FileList_ContextMenuOpening"
-                              PreviewMouseRightButtonDown="FileList_PreviewMouseRightButtonDown"
-                              ScrollViewer.VerticalScrollBarVisibility="Disabled">
+          ItemsSource="{Binding FilteredFiles}"
+          SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
+          MouseDoubleClick="FileList_MouseDoubleClick"
+          Background="Transparent" BorderThickness="0"
+          ContextMenuOpening="FileList_ContextMenuOpening"
+          PreviewMouseRightButtonDown="FileList_PreviewMouseRightButtonDown"
+          ScrollViewer.VerticalScrollBarVisibility="Disabled"
+          HorizontalContentAlignment="Stretch"
+          Margin="0,0,75,0">
                         <ListView.ContextMenu>
                             <ContextMenu>
                                 <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
@@ -171,7 +173,7 @@
                             <DataTemplate>
                                 <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
                                     <StackPanel>
-                                        <Grid Width="600">
+                                        <Grid>
                                             <Grid.ColumnDefinitions>
                                                 <ColumnDefinition Width="80"/>
                                                 <ColumnDefinition Width="*"/>
