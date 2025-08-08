@@ -1,63 +1,184 @@
-# AccesClientWPF
+# 📌 Accès Client
 
-AccesClientWPF est une application WPF conçue pour faciliter la gestion des clients et des connexions à distance. Elle permet de gérer des comptes RDS, VPN et AnyDesk, de lancer des connexions sécurisées, et de consulter facilement les fichiers associés à chaque client.
+> **Accès Client** est une application **WPF moderne** permettant de centraliser et gérer **tous les accès et ressources d’un parc client** : connexions RDS, VPN, AnyDesk, fichiers partagés et identifiants sécurisés.
+> Son objectif : **réduire le temps d’accès** aux ressources, tout en assurant **sécurité et traçabilité**.
 
-## Fonctionnalités principales
+---
 
-- Gestion des clients et des fichiers associés.
-- Connexion à distance via RDP avec gestion des comptes utilisateurs.
-- Connexion VPN (simulation) via FortiClient.
-- Organisation des fichiers par type : RDS, VPN, AnyDesk.
-- Interface moderne et intuitive construite avec WPF.
+## 🖼️ Aperçu visuel
+<img width="1286" height="743" alt="image_2025-08-08_193049405" src="https://github.com/user-attachments/assets/a7af87d8-6723-43ca-b19c-f2ddbcc32e7a" />
+---
 
-## Installation
+## 🚀 Fonctionnalités
 
-1. **Prérequis :**
-   - Windows avec .NET Framework ou .NET Core/5+ installé.
-   - La Release
-   - Exécuter l'exe
+### 🗂️ Gestion des clients et ressources
 
-## Utilisation
+* Organisation **par client** dans une barre latérale
+* Classement des éléments par **type** :
 
-1. **Ajouter un client :**
-   - L’interface affiche une liste de clients dans une barre latérale.
-   - Cliquez sur “Gérer les comptes de connexion” pour ajouter ou modifier les comptes associés à un client.
+  * 🖥️ **RDS** : Connexions Bureau à distance
+  * 🌐 **VPN** : Ouverture via FortiClient ou autre
+  * 📡 **AnyDesk** : Connexion directe avec mot de passe
+  * 📁 **Fichiers/Dossiers** : Ouverture rapide
+  * 🔑 **Mots de passe supplémentaires** : panneau dédié à droite
 
-2. **Lancer une connexion RDS :**
-   - Sélectionnez un fichier RDS dans la liste principale.
-   - Double-cliquez pour lancer une connexion RDP en utilisant les informations de connexion configurées.
+---
 
-3. **Gérer les fichiers :**
-   - Chaque client dispose de son propre répertoire.
-   - Les fichiers sont triés par type et peuvent être ouverts directement depuis l’interface.
+### 🔑 Gestion sécurisée des identifiants
 
-4. **Modifier les informations de connexion :**
-   - Utilisez la fenêtre de gestion des comptes pour mettre à jour les identifiants ou les descriptions des connexions.
+* Chiffrement **AES** via `EncryptionHelper`
+* Boutons 📋 pour copie rapide de l’utilisateur ou mot de passe
+* Toast visuel de confirmation *(pas d’alerte bloquante)*
+* Conservation automatique des mots de passe existants lors de l’édition
 
-## Version actuelle
+---
 
-**V0.1.1**  
-Cette version inclut :
-- La gestion des comptes RDS avec cryptage des mots de passe.
-- La simulation de connexion VPN.
-- Une interface graphique améliorée avec boutons arrondis et icônes personnalisées.
-- La gestion des fichiers triés par type (RDS, VPN, AnyDesk).
-- L’intégration d’une barre latérale pour sélectionner les clients.
+### ▶️ Lancement direct de connexions
 
-## Contributions
+* **RDS** :
 
-Les contributions sont les bienvenues ! Si vous souhaitez participer, veuillez suivre ces étapes :
+  * Fichier `.rdp` temporaire avec titre personnalisé
+  * Multi-écran activable/désactivable
+  * Stockage temporaire sécurisé des identifiants
+* **AnyDesk** :
 
-1. Forkez ce dépôt.
-2. Créez une branche pour votre fonctionnalité : `git checkout -b feature/ma-nouvelle-fonctionnalite`.
-3. Ajoutez vos modifications et effectuez un commit : `git commit -m "Ajout d'une nouvelle fonctionnalité"`.
-4. Poussez vos modifications : `git push origin feature/ma-nouvelle-fonctionnalite`.
-5. Créez une Pull Request sur GitHub.
+  * Exécution avec `--with-password` via MDPass
+  * Validation automatique du chemin (persisté dans `settings.json`)
+* **VPN / Fichier / Dossier** :
 
-## Licence
+  * Ouverture/exécution immédiate depuis l’interface
 
-Ce projet est sous licence MIT.
+---
 
-## Auteurs
+### 📡 Gestion des bases partagées
 
-- **Antunes Barata Rodrigue** - *Développement principal*  
+* Fichiers `.antclient` avec verrou `.lock` pour éviter les conflits
+* Import d’une base locale avec fusion Clients/Files
+* **Save / Save As** activés seulement quand une base est ouverte
+
+---
+
+### 🎛️ Options d’affichage
+
+* Case **Multi-moniteur** pour RDS
+* Case **Afficher identifiants** (masque/affiche les champs sensibles)
+* Interface adaptative :
+
+  * Colonne centrale limitée en largeur
+  * Panneau *Mots de passe supplémentaires* toujours visible
+  * Redimensionnement fluide
+
+---
+
+## 📥 Installation
+
+### 1️⃣ Prérequis
+
+* **Windows 10+**
+* **.NET 8.0** ou plus récent
+* Droits d’exécution d’applications locales
+
+### 2️⃣ Étapes d’installation
+
+```bash
+# Télécharger la dernière release depuis GitHub
+# Extraire le ZIP
+# Lancer :
+AccesClient.exe
+```
+
+---
+
+## 📚 Utilisation
+
+### ➕ Ajouter un client
+
+![AddClient](docs/screenshots/addclient.png)
+
+1. Cliquer sur **Ajouter client**
+2. Remplir les champs
+3. Enregistrer
+
+---
+
+### 📂 Ajouter un élément
+
+![AddEntry](docs/screenshots/addentry.png)
+
+1. Sélectionner le client
+2. Cliquer sur **+ Ajouter**
+3. Choisir le **type**
+4. Renseigner les infos et valider
+
+---
+
+### ▶️ Lancer une connexion
+
+* **Double-cliquer** sur l’élément (RDS, AnyDesk, VPN, Fichier)
+* La connexion ou l’ouverture démarre immédiatement avec les paramètres enregistrés
+
+---
+
+### 📋 Copier un identifiant
+
+* Cliquer sur 📋 → Toast visuel en haut à droite
+
+---
+
+## 🛠️ Architecture technique
+
+```plaintext
+AccesClient/
+│
+├── Views/                # Fenêtres et contrôles WPF
+├── ViewModels/           # Logique MVVM
+├── Models/               # Objets métiers (Client, File, etc.)
+├── Converters/           # Conversions XAML (bool → visibility, decrypt, etc.)
+├── Helpers/              # Utilitaires (chiffrement, presse-papiers…)
+├── Resources/            # Icônes et styles
+└── database.json         # Base locale (ou .antclient pour partagé)
+```
+
+---
+
+## 📌 Historique des versions
+
+| Version   | Date       | Changements clés                                                     |
+| --------- | ---------- | -------------------------------------------------------------------- |
+| **1.4.3** | 2025-08-08 | Adaptation UI, suppression largeurs fixes, marges optimisées         |
+| **1.4.2** | 2025-08-08 | Panneau *Mots de passe supplémentaires*, commandes MVVM, toast copie |
+| **1.4.1** | 2025-08-07 | Ajout gestion AnyDesk, RDS multi-écran, fusion base partagée         |
+
+---
+
+## 🤝 Contributions
+
+1. Forker le dépôt
+2. Créer une branche :
+
+   ```bash
+   git checkout -b feature/nouvelle-fonctionnalite
+   ```
+3. Commit :
+
+   ```bash
+   git commit -m "Ajout : nouvelle fonctionnalité"
+   ```
+4. Push :
+
+   ```bash
+   git push origin feature/nouvelle-fonctionnalite
+   ```
+5. Créer une **Pull Request**
+
+---
+
+## 📜 Licence
+
+**MIT License** — Utilisation libre avec attribution
+
+---
+
+## 👨‍💻 Auteur
+
+* **Rodrigue Antunes Barata** — Développeur principal
