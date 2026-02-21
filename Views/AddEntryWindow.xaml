@@ -2,13 +2,13 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Ajouter un élément" Height="Auto" Width="700"
+        Title="Ajouter un élément" Height="Auto" Width="900"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
+
     <Window.Resources>
         <conv:FileTypeToIconConverter x:Key="FileTypeToIconConverter"/>
 
-        <!-- Style pour les boutons arrondis -->
         <Style x:Key="RoundedButton" TargetType="Button">
             <Setter Property="Background" Value="#5DADE2"/>
             <Setter Property="Foreground" Value="White"/>
@@ -18,8 +18,7 @@
             <Setter Property="Template">
                 <Setter.Value>
                     <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="10" 
-                                BorderBrush="Transparent">
+                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="10" BorderBrush="Transparent">
                             <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
                         </Border>
                     </ControlTemplate>
@@ -31,33 +30,54 @@
     <Grid Margin="10">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
+            <!-- Nom -->
             <RowDefinition Height="Auto"/>
+            <!-- Type -->
             <RowDefinition Height="Auto"/>
+            <!-- Client -->
             <RowDefinition Height="Auto"/>
+            <!-- Rangement -->
             <RowDefinition Height="Auto"/>
+            <!-- RDS / Mot de passe -->
             <RowDefinition Height="Auto"/>
+            <!-- AnyDesk -->
             <RowDefinition Height="Auto"/>
+            <!-- VPN -->
             <RowDefinition Height="Auto"/>
+            <!-- Dossier -->
+            <RowDefinition Height="Auto"/>
+            <!-- Fichier -->
+            <RowDefinition Height="Auto"/>
+            <!-- Boutons -->
         </Grid.RowDefinitions>
 
         <TextBlock Text="Nom :" Grid.Row="0" FontWeight="Bold"/>
         <TextBox x:Name="TxtName" Grid.Row="0" Margin="100,0,0,5" Background="#FFFFFF"/>
 
         <TextBlock Text="Type :" Grid.Row="1" FontWeight="Bold"/>
-        <ComboBox x:Name="CmbType" Grid.Row="1" Margin="100,0,0,5" Background="#FFFFFF" SelectionChanged="CmbType_SelectionChanged">
+        <ComboBox x:Name="CmbType" Grid.Row="1" Margin="100,0,0,5" Background="#FFFFFF"
+                  SelectionChanged="CmbType_SelectionChanged">
             <ComboBoxItem Content="Bureau à distance" Tag="RDS"/>
             <ComboBoxItem Content="VPN" Tag="VPN"/>
             <ComboBoxItem Content="Anydesk" Tag="AnyDesk"/>
             <ComboBoxItem Content="Dossier" Tag="Dossier"/>
             <ComboBoxItem Content="Fichier" Tag="Fichier"/>
             <ComboBoxItem Content="Mot de passe" Tag="MotDePasse"/>
+            <ComboBoxItem Content="Rangement (niveau 2)" Tag="Rangement"/>
         </ComboBox>
 
         <TextBlock Text="Client :" Grid.Row="2" FontWeight="Bold"/>
-        <ComboBox x:Name="CmbClient" Grid.Row="2" Margin="100,0,0,5" Background="#FFFFFF" DisplayMemberPath="Name"/>
+        <ComboBox x:Name="CmbClient" Grid.Row="2" Margin="100,0,0,5" Background="#FFFFFF"
+                  DisplayMemberPath="Name"/>
+
+        <TextBlock Text="Rangement :" Grid.Row="3" FontWeight="Bold"/>
+        <ComboBox x:Name="CmbRangementParent"
+                  Grid.Row="3"
+                  Margin="100,0,0,5"
+                  Background="#FFFFFF"/>
 
         <!-- Section RDS -->
-        <StackPanel x:Name="PanelRDS" Grid.Row="3" Orientation="Vertical" Visibility="Collapsed">
+        <StackPanel x:Name="PanelRDS" Grid.Row="4" Orientation="Vertical" Visibility="Collapsed">
             <TextBlock Text="IP/DNS :" FontWeight="Bold"/>
             <TextBox x:Name="TxtIpDns" Margin="100,0,0,5" Background="#FFFFFF"/>
             <TextBlock Text="Nom d'utilisateur :" FontWeight="Bold"/>
@@ -67,13 +87,12 @@
         </StackPanel>
 
         <!-- Section AnyDesk -->
-        <StackPanel x:Name="PanelAnyDesk" Grid.Row="4" Orientation="Vertical" Visibility="Collapsed">
+        <StackPanel x:Name="PanelAnyDesk" Grid.Row="5" Orientation="Vertical" Visibility="Collapsed">
             <TextBlock Text="Identifiant :" FontWeight="Bold"/>
             <TextBox x:Name="TxtAnydeskId" Margin="100,0,0,5" Background="#FFFFFF"/>
             <TextBlock Text="Mot de passe (facultatif) :" FontWeight="Bold"/>
             <PasswordBox x:Name="TxtAnydeskPassword" Margin="100,0,0,5" Background="#FFFFFF"/>
 
-            <!-- Nouveaux champs pour les informations Windows -->
             <TextBlock Text="Utilisateur Windows (facultatif) :" FontWeight="Bold"/>
             <TextBox x:Name="TxtWindowsUsername" Margin="100,0,0,5" Background="#FFFFFF"/>
             <TextBlock Text="Mot de passe Windows (facultatif) :" FontWeight="Bold"/>
@@ -81,51 +100,54 @@
         </StackPanel>
 
         <!-- Section VPN -->
-        <StackPanel x:Name="PanelVPN" Grid.Row="5" Orientation="Vertical" Visibility="Collapsed">
+        <StackPanel x:Name="PanelVPN" Grid.Row="6" Orientation="Vertical" Visibility="Collapsed">
             <TextBlock Text="Chemin de l'exécutable :" FontWeight="Bold"/>
             <StackPanel Orientation="Horizontal">
-                <TextBox x:Name="TxtVpnPath" Width="250" Background="#FFFFFF" Margin="100,0,0,5"/>
-                <Button Content="Parcourir" Width="80" Margin="5" Click="BrowseVpnExecutable_Click" Style="{StaticResource RoundedButton}"/>
+                <TextBox x:Name="TxtVpnPath" Width="400" Background="#FFFFFF" Margin="100,0,0,5"/>
+                <Button Content="Parcourir" Width="100" Margin="5" Click="BrowseVpnExecutable_Click" Style="{StaticResource RoundedButton}"/>
             </StackPanel>
         </StackPanel>
 
         <!-- Section Dossier -->
-        <StackPanel x:Name="PanelFolder" Grid.Row="6" Orientation="Vertical" Visibility="Collapsed">
+        <StackPanel x:Name="PanelFolder" Grid.Row="7" Orientation="Vertical" Visibility="Collapsed">
             <TextBlock Text="Chemin du dossier :" FontWeight="Bold"/>
             <StackPanel Orientation="Horizontal">
-                <TextBox x:Name="TxtFolderPath" Width="250" Background="#FFFFFF" Margin="100,0,0,5"/>
-                <Button Content="Parcourir" Width="80" Margin="5" Click="BrowseFolder_Click" Style="{StaticResource RoundedButton}"/>
+                <TextBox x:Name="TxtFolderPath" Width="400" Background="#FFFFFF" Margin="100,0,0,5"/>
+                <Button Content="Parcourir" Width="100" Margin="5" Click="BrowseFolder_Click" Style="{StaticResource RoundedButton}"/>
             </StackPanel>
         </StackPanel>
 
         <!-- Section Fichier -->
-        <StackPanel x:Name="PanelFile" Grid.Row="7" Orientation="Vertical" Visibility="Collapsed">
+        <StackPanel x:Name="PanelFile" Grid.Row="8" Orientation="Vertical" Visibility="Collapsed">
             <TextBlock Text="Chemin du fichier :" FontWeight="Bold"/>
             <StackPanel Orientation="Horizontal">
-                <TextBox x:Name="TxtFilePath" Width="250" Background="#FFFFFF" Margin="100,0,0,5"/>
-                <Button Content="Parcourir" Width="80" Margin="5" Click="BrowseFile_Click" Style="{StaticResource RoundedButton}"/>
+                <TextBox x:Name="TxtFilePath" Width="400" Background="#FFFFFF" Margin="100,0,0,5"/>
+                <Button Content="Parcourir" Width="100" Margin="5" Click="BrowseFile_Click" Style="{StaticResource RoundedButton}"/>
             </StackPanel>
+
             <TextBlock Text="Icône personnalisée (optionnelle) :" FontWeight="Bold"/>
             <StackPanel Orientation="Horizontal">
-                <TextBox x:Name="TxtIconPath" Width="250" Background="#FFFFFF" Margin="100,0,0,5"/>
-                <Button Content="Parcourir" Width="80" Margin="5" Click="BrowseIcon_Click" Style="{StaticResource RoundedButton}"/>
+                <TextBox x:Name="TxtIconPath" Width="400" Background="#FFFFFF" Margin="100,0,0,5"/>
+                <Button Content="Parcourir" Width="100" Margin="5" Click="BrowseIcon_Click" Style="{StaticResource RoundedButton}"/>
             </StackPanel>
-            <Image x:Name="IconPreview" Width="48" Height="48" Margin="100,5,0,5" Stretch="Uniform" 
+
+            <Image x:Name="IconPreview" Width="48" Height="48" Margin="100,5,0,5" Stretch="Uniform"
                    Visibility="Collapsed" HorizontalAlignment="Left"/>
         </StackPanel>
 
         <!-- Section Mot de passe -->
-        <StackPanel x:Name="PanelPassword" Grid.Row="3" Orientation="Vertical" Visibility="Collapsed">
+        <StackPanel x:Name="PanelPassword" Grid.Row="4" Orientation="Vertical" Visibility="Collapsed">
             <TextBlock Text="Nom d'utilisateur :" FontWeight="Bold"/>
             <TextBox x:Name="TxtPasswordUser" Margin="100,0,0,5"/>
             <TextBlock Text="Mot de passe :" FontWeight="Bold"/>
             <PasswordBox x:Name="TxtPasswordPass" Margin="100,0,0,5"/>
         </StackPanel>
 
-        <StackPanel Grid.Row="7" Orientation="Horizontal" HorizontalAlignment="Right">
-            <Button Content="Annuler" Width="80" Margin="5" Click="Cancel_Click" Style="{StaticResource RoundedButton}"/>
-            <Button Content="Enregistrer" Width="80" Margin="5" Click="Save_Click" Style="{StaticResource RoundedButton}"/>
+        <!-- Boutons -->
+        <StackPanel Grid.Row="9" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Éléments existants" Width="170" Margin="5" Click="ShowExistingElements_Click" Style="{StaticResource RoundedButton}"/>
+            <Button Content="Annuler" Width="110" Margin="5" Click="Cancel_Click" Style="{StaticResource RoundedButton}"/>
+            <Button Content="Enregistrer" Width="110" Margin="5" Click="Save_Click" Style="{StaticResource RoundedButton}"/>
         </StackPanel>
-
     </Grid>
 </Window>

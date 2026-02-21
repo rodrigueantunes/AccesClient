@@ -4,19 +4,16 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         xmlns:local="clr-namespace:AccesClientWPF.ViewModels"
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
-        Title="Accès Client 1.4.3" Height="750" Width="1300"
+        Title="{Binding WindowTitle}" Height="850" Width="1460"
         Background="#EAEDED"
         WindowStartupLocation="CenterScreen">
-
-    <Window.DataContext>
-        <local:MainViewModel/>
-    </Window.DataContext>
 
     <Window.Resources>
         <conv:FileTypeToIconConverter x:Key="FileTypeToIconConverter"/>
         <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
         <conv:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibilityConverter"/>
         <conv:DecryptPasswordConverter x:Key="DecryptPasswordConverter"/>
+        <conv:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
         <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
         <!-- Bouton principal arrondi -->
@@ -67,7 +64,6 @@
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="*"/>
-            <!-- Auto : la colonne prend 0 quand le Border est Collapsed -->
             <ColumnDefinition Width="Auto"/>
         </Grid.ColumnDefinitions>
 
@@ -98,159 +94,646 @@
             <!-- Contenu principal -->
             <ScrollViewer x:Name="MainScrollViewer" VerticalScrollBarVisibility="Auto" PreviewMouseWheel="MainScrollViewer_PreviewMouseWheel">
                 <StackPanel>
+
                     <!-- Options -->
-                    <StackPanel Orientation="Horizontal" Margin="10">
-                        <CheckBox Content="Activer le mode multi-moniteur"
-                                  Margin="0,0,20,0"
-                                  IsChecked="{Binding IsMultiMonitor, Mode=TwoWay}"/>
-                        <CheckBox Content="Afficher les identifiants"
-                                  IsChecked="{Binding ShowCredentials, Mode=TwoWay}"/>
+                    <StackPanel Margin="10">
+                        <StackPanel Orientation="Horizontal">
+                            <CheckBox Content="Activer le mode multi-moniteur"
+                                      Margin="0,0,20,0"
+                                      IsChecked="{Binding IsMultiMonitor, Mode=TwoWay}"/>
+
+                            <CheckBox Content="Tous les écrans"
+                                      Margin="0,0,20,0"
+                                      IsChecked="{Binding UseAllMonitors, Mode=TwoWay}">
+                                <CheckBox.Style>
+                                    <Style TargetType="CheckBox">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <DataTrigger Binding="{Binding IsMultiMonitor}" Value="True">
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </DataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </CheckBox.Style>
+                            </CheckBox>
+
+                            <TextBlock Text="Nombre d'écrans :"
+                                       VerticalAlignment="Center"
+                                       Margin="0,0,8,0">
+                                <TextBlock.Style>
+                                    <Style TargetType="TextBlock">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsMultiMonitor}" Value="True"/>
+                                                    <Condition Binding="{Binding UseAllMonitors}" Value="False"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </TextBlock.Style>
+                            </TextBlock>
+
+                            <ComboBox Width="70"
+                                      ItemsSource="{Binding MonitorCountOptions}"
+                                      SelectedItem="{Binding SelectedMonitorCount, Mode=TwoWay}">
+                                <ComboBox.Style>
+                                    <Style TargetType="ComboBox">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                        <Style.Triggers>
+                                            <MultiDataTrigger>
+                                                <MultiDataTrigger.Conditions>
+                                                    <Condition Binding="{Binding IsMultiMonitor}" Value="True"/>
+                                                    <Condition Binding="{Binding UseAllMonitors}" Value="False"/>
+                                                </MultiDataTrigger.Conditions>
+                                                <Setter Property="Visibility" Value="Visible"/>
+                                            </MultiDataTrigger>
+                                        </Style.Triggers>
+                                    </Style>
+                                </ComboBox.Style>
+                            </ComboBox>
+
+                            <CheckBox Content="Afficher les identifiants"
+                                      Margin="20,0,0,0"
+                                      IsChecked="{Binding ShowCredentials, Mode=TwoWay}"/>
+                        </StackPanel>
+
+                        <ItemsControl ItemsSource="{Binding MonitorSlots}" Margin="0,10,0,0">
+                            <ItemsControl.Style>
+                                <Style TargetType="ItemsControl">
+                                    <Setter Property="Visibility" Value="Collapsed"/>
+                                    <Style.Triggers>
+                                        <MultiDataTrigger>
+                                            <MultiDataTrigger.Conditions>
+                                                <Condition Binding="{Binding IsMultiMonitor}" Value="True"/>
+                                                <Condition Binding="{Binding UseAllMonitors}" Value="False"/>
+                                            </MultiDataTrigger.Conditions>
+                                            <Setter Property="Visibility" Value="Visible"/>
+                                        </MultiDataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ItemsControl.Style>
+
+                            <ItemsControl.ItemsPanel>
+                                <ItemsPanelTemplate>
+                                    <WrapPanel/>
+                                </ItemsPanelTemplate>
+                            </ItemsControl.ItemsPanel>
+
+                            <ItemsControl.ItemTemplate>
+                                <DataTemplate>
+                                    <Border Background="#FDFEFE" CornerRadius="8" BorderBrush="#D5DBDB" BorderThickness="1"
+                                            Padding="10" Margin="0,0,10,10" Width="360">
+                                        <StackPanel>
+                                            <TextBlock Text="{Binding SlotTitle}" Foreground="#34495E" FontSize="13"/>
+
+                                            <Grid Margin="0,6,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="*" />
+                                                    <ColumnDefinition Width="44" />
+                                                </Grid.ColumnDefinitions>
+
+                                                <ComboBox Grid.Column="0"
+                                                          ItemsSource="{Binding AvailableScreens}"
+                                                          SelectedItem="{Binding SelectedScreen, Mode=TwoWay}"
+                                                          DisplayMemberPath="DisplayName"/>
+
+                                                <Button Grid.Column="1"
+                                                        Margin="6,0,0,0"
+                                                        Content="N°"
+                                                        FontWeight="Bold"
+                                                        Background="#000000"
+                                                        Foreground="White"
+                                                        BorderBrush="#444444"
+                                                        Height="28"
+                                                        Cursor="Hand"
+                                                        Command="{Binding DataContext.ShowScreenNumbersCommand, RelativeSource={RelativeSource AncestorType=Window}}"/>
+                                            </Grid>
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ItemsControl.ItemTemplate>
+                        </ItemsControl>
                     </StackPanel>
 
-                    <!-- Bandeau client + Ajouter -->
-                    <Border Background="#34495E" Margin="10,5,10,10" Padding="15,10" CornerRadius="8">
+                    <!-- Bandeau + bouton -->
+                    <Border Background="#34495E" Margin="10,5,10,10" Padding="15,10" CornerRadius="10">
                         <Grid>
                             <Grid.ColumnDefinitions>
                                 <ColumnDefinition Width="*"/>
                                 <ColumnDefinition Width="Auto"/>
                             </Grid.ColumnDefinitions>
 
-                            <TextBlock Grid.Column="0" Text="{Binding SelectedClient.Name}"
-                                       FontSize="20" FontWeight="Bold" Foreground="White"
-                                       HorizontalAlignment="Center"/>
+                            <TextBlock Text="{Binding SelectedClient.Name}"
+                                       Grid.ColumnSpan="2"
+                                       HorizontalAlignment="Center"
+                                       VerticalAlignment="Center"
+                                       Foreground="White"
+                                       FontSize="20"
+                                       FontWeight="Bold"/>
 
-                            <Button Grid.Column="1"
-                                    Content="+ Ajouter"
+                            <Button Grid.Column="1" Content="Ajouter un élément"
+                                    Width="180" Height="40"
                                     Style="{StaticResource RoundedButton}"
-                                    Background="#2ECC71"
-                                    Foreground="White"
-                                    Padding="8,3"
-                                    Margin="5,0,10,0"
                                     Command="{Binding AddFileCommand}"/>
                         </Grid>
                     </Border>
 
-                    <!-- Liste du centre (on masque MotDePasse ici) -->
-                    <ListView Name="FileList"
-                              ItemsSource="{Binding FilteredFiles}"
-                              SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
-                              MouseDoubleClick="FileList_MouseDoubleClick"
-                              Background="Transparent" BorderThickness="0"
-                              ScrollViewer.VerticalScrollBarVisibility="Disabled"
-                              HorizontalContentAlignment="Stretch"
-                              Margin="0,0,75,0">
+                    <!-- ========================= -->
+                    <!--        CENTRE             -->
+                    <!--  1 LISTE OU SPLIT         -->
+                    <!-- ========================= -->
+                    <Grid Margin="10,0,10,10">
+                        <Grid.ColumnDefinitions>
+                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="10" />
+                            <ColumnDefinition Width="*" />
+                        </Grid.ColumnDefinitions>
 
-                        <ListView.ItemContainerStyle>
-                            <Style TargetType="ListViewItem">
-                                <Setter Property="Visibility" Value="Visible"/>
-                                <Style.Triggers>
-                                    <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
-                                        <Setter Property="Visibility" Value="Collapsed"/>
-                                    </DataTrigger>
-                                </Style.Triggers>
-                            </Style>
-                        </ListView.ItemContainerStyle>
+                        <!-- MODE CLASSIQUE -->
+                        <ListView Name="FileListSingle"
+                                  Grid.ColumnSpan="3"
+                                  ItemsSource="{Binding FilteredFiles}"
+                                  SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
+                                  MouseDoubleClick="FileList_MouseDoubleClick"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                  HorizontalContentAlignment="Stretch"
+                                  Margin="0,0,75,0"
+                                  Visibility="{Binding HasLevel2, Converter={StaticResource InverseBooleanToVisibilityConverter}}">
 
-                        <ListView.ContextMenu>
-                            <ContextMenu>
-                                <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                    <MenuItem.Icon>
-                                        <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Fill="#2ECC71" Stretch="Uniform" Width="16" Height="16"/>
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                    <MenuItem.Icon>
-                                        <Path Data="M20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z" Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                                <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                    <MenuItem.Icon>
-                                        <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z" Fill="#E74C3C" Stretch="Uniform" Width="16" Height="16"/>
-                                    </MenuItem.Icon>
-                                </MenuItem>
-                            </ContextMenu>
-                        </ListView.ContextMenu>
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ListView.ItemContainerStyle>
 
-                        <ListView.ItemTemplate>
-                            <DataTemplate>
-                                <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
-                                    <StackPanel>
-                                        <!-- Ligne principale -->
-                                        <Grid>
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="80"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
+                            <ListView.ContextMenu>
+                                <ContextMenu Opened="ElementsContextMenu_Opened">
 
-                                            <Border Grid.Column="0" Background="#EAEDED" Padding="5" CornerRadius="8" Margin="0,0,15,0" Width="70" Height="70">
-                                                <Image Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality">
-                                                    <Image.Source>
-                                                        <Binding Path="." Converter="{StaticResource FileTypeToIconConverter}"/>
-                                                    </Image.Source>
-                                                </Image>
-                                            </Border>
+                                    <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Fill="#2ECC71" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
 
-                                            <TextBlock Grid.Column="1" Text="{Binding Name}" VerticalAlignment="Center"
-                                                       FontSize="16" FontWeight="Bold" Foreground="#2C3E50"/>
+                                    <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                                  Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
 
-                                            <TextBlock Grid.Column="2" Text="{Binding Type}" VerticalAlignment="Center"
-                                                       FontSize="13" Foreground="#7F8C8D" Margin="10,0,0,0"/>
-                                        </Grid>
+                                    <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                                                  Fill="#E74C3C" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
 
-                                        <!-- Infos Windows pour AnyDesk -->
-                                        <Grid Visibility="{Binding Type, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=AnyDesk}"
-                                              Margin="80,5,0,0">
-                                            <Grid.ColumnDefinitions>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="*"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                                <ColumnDefinition Width="Auto"/>
-                                            </Grid.ColumnDefinitions>
+                                    <Separator/>
 
-                                            <!-- Utilisateur -->
-                                            <StackPanel Grid.Column="0" Orientation="Horizontal"
-            Visibility="{Binding WindowsUsername, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
-                                                <TextBlock Text="Utilisateur Windows:" VerticalAlignment="Center"
-               FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
-                                                <TextBlock Text="{Binding WindowsUsername}" VerticalAlignment="Center"
-               FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
-               Visibility="{Binding DataContext.ShowCredentials,
-                                    RelativeSource={RelativeSource AncestorType=Window},
-                                    Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                                                <Button Content="📋" Width="25" Height="25" Margin="2"
-            ToolTip="Copier le nom d'utilisateur"
-            Command="{Binding DataContext.CopyUsernameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-            CommandParameter="{Binding WindowsUsername}"
-            Style="{StaticResource CopyButton}"/>
-                                            </StackPanel>
+                                    <MenuItem Header="Aller vers Racine"
+                                              Tag="GoRoot"
+                                              Click="MoveToRoot_Click"
+                                              Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
+                                                  Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+                                </ContextMenu>
+                            </ListView.ContextMenu>
 
-                                            <!-- Mot de passe -->
-                                            <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="15,0,0,0"
-            Visibility="{Binding WindowsPassword, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
-                                                <TextBlock Text="Mot de passe Windows:" VerticalAlignment="Center"
-               FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
-                                                <TextBlock VerticalAlignment="Center"
-               FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
-               Visibility="{Binding DataContext.ShowCredentials,
-                                    RelativeSource={RelativeSource AncestorType=Window},
-                                    Converter={StaticResource BooleanToVisibilityConverter}}">
-        <Run Text="{Binding WindowsPassword, Converter={StaticResource DecryptPasswordConverter}, Mode=OneWay}"/>
-                                                </TextBlock>
-                                                <Button Content="📋" Width="25" Height="25" Margin="5,0,0,0"
-            ToolTip="Copier le mot de passe"
-            Command="{Binding DataContext.CopyPasswordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
-            CommandParameter="{Binding WindowsPassword}"
-            Style="{StaticResource CopyButton}"/>
-                                            </StackPanel>
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
+                                        <StackPanel>
 
-                                        </Grid>
-                                    </StackPanel>
-                                </Border>
-                            </DataTemplate>
-                        </ListView.ItemTemplate>
-                    </ListView>
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" Background="#EAEDED" Padding="5" CornerRadius="8" Margin="0,0,15,0" Width="70" Height="70">
+                                                    <Image Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality">
+                                                        <Image.Source>
+                                                            <Binding Path="." Converter="{StaticResource FileTypeToIconConverter}"/>
+                                                        </Image.Source>
+                                                    </Image>
+                                                </Border>
+
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Name}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="16"
+                                                           FontWeight="Bold"
+                                                           Foreground="#2C3E50"/>
+
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding Type}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="13"
+                                                           Foreground="#7F8C8D"
+                                                           Margin="10,0,0,0"/>
+                                            </Grid>
+
+                                            <Grid Visibility="{Binding Type, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=AnyDesk}"
+                                                  Margin="80,5,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                                            Visibility="{Binding WindowsUsername, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+                                                    <TextBlock Text="Utilisateur Windows:"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="12"
+                                                               FontWeight="Bold"
+                                                               Foreground="#34495E"/>
+                                                    <TextBlock Text="{Binding WindowsUsername}"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="12"
+                                                               Foreground="#34495E"
+                                                               Margin="5,0,5,0"
+                                                               Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                    <Button Content="📋"
+                                                            Width="25"
+                                                            Height="25"
+                                                            Margin="2"
+                                                            ToolTip="Copier le nom d'utilisateur"
+                                                            Command="{Binding DataContext.CopyUsernameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding WindowsUsername}"
+                                                            Style="{StaticResource CopyButton}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="2"
+                                                            Orientation="Horizontal"
+                                                            Margin="15,0,0,0"
+                                                            Visibility="{Binding WindowsPassword, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+                                                    <TextBlock Text="Mot de passe Windows:"
+                                                               VerticalAlignment="Center"
+                                                               FontSize="12"
+                                                               FontWeight="Bold"
+                                                               Foreground="#34495E"/>
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               FontSize="12"
+                                                               Foreground="#34495E"
+                                                               Margin="5,0,5,0"
+                                                               Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                        <Run Text="{Binding WindowsPassword, Converter={StaticResource DecryptPasswordConverter}, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    <Button Content="📋"
+                                                            Width="25"
+                                                            Height="25"
+                                                            Margin="5,0,0,0"
+                                                            ToolTip="Copier le mot de passe"
+                                                            Command="{Binding DataContext.CopyPasswordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding WindowsPassword}"
+                                                            Style="{StaticResource CopyButton}"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <!-- MODE SPLIT : GAUCHE (RACINE) -->
+                        <ListView Name="FileListRoot"
+                                  Grid.Column="0"
+                                  ItemsSource="{Binding RootFiles}"
+                                  SelectedItem="{Binding SelectedRootItem, Mode=TwoWay}"
+                                  MouseDoubleClick="FileList_MouseDoubleClick"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                  HorizontalContentAlignment="Stretch"
+                                  Visibility="{Binding HasLevel2, Converter={StaticResource BooleanToVisibilityConverter}}">
+
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+
+                            <ListView.ContextMenu>
+                                <ContextMenu Opened="ElementsContextMenu_Opened">
+
+                                    <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Fill="#2ECC71" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                    <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                                  Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                    <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                                                  Fill="#E74C3C" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                    <Separator/>
+
+                                    <MenuItem Header="Aller vers Racine"
+                                              Tag="GoRoot"
+                                              Click="MoveToRoot_Click"
+                                              Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
+                                                  Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                    <MenuItem Header="Aller vers..."
+                                              Tag="GoTo"
+                                              
+                                              Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M10,17L15,12L10,7V17Z"
+                                                  Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                </ContextMenu>
+                            </ListView.ContextMenu>
+
+                            <!-- même ItemTemplate -->
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
+                                        <StackPanel>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" Background="#EAEDED" Padding="5" CornerRadius="8" Margin="0,0,15,0" Width="70" Height="70">
+                                                    <Image Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality">
+                                                        <Image.Source>
+                                                            <Binding Path="." Converter="{StaticResource FileTypeToIconConverter}"/>
+                                                        </Image.Source>
+                                                    </Image>
+                                                </Border>
+
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Name}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="16"
+                                                           FontWeight="Bold"
+                                                           Foreground="#2C3E50"/>
+
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding Type}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="13"
+                                                           Foreground="#7F8C8D"
+                                                           Margin="10,0,0,0"/>
+                                            </Grid>
+
+                                            <Grid Visibility="{Binding Type, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=AnyDesk}"
+                                                  Margin="80,5,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                                            Visibility="{Binding WindowsUsername, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+                                                    <TextBlock Text="Utilisateur Windows:" VerticalAlignment="Center"
+                                                               FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+                                                    <TextBlock Text="{Binding WindowsUsername}" VerticalAlignment="Center"
+                                                               FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
+                                                               Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                    <Button Content="📋" Width="25" Height="25" Margin="2"
+                                                            ToolTip="Copier le nom d'utilisateur"
+                                                            Command="{Binding DataContext.CopyUsernameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding WindowsUsername}"
+                                                            Style="{StaticResource CopyButton}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="15,0,0,0"
+                                                            Visibility="{Binding WindowsPassword, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+                                                    <TextBlock Text="Mot de passe Windows:" VerticalAlignment="Center"
+                                                               FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
+                                                               Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                        <Run Text="{Binding WindowsPassword, Converter={StaticResource DecryptPasswordConverter}, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    <Button Content="📋" Width="25" Height="25" Margin="5,0,0,0"
+                                                            ToolTip="Copier le mot de passe"
+                                                            Command="{Binding DataContext.CopyPasswordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding WindowsPassword}"
+                                                            Style="{StaticResource CopyButton}"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                        <GridSplitter Grid.Column="1"
+                                      Width="10"
+                                      Background="Transparent"
+                                      HorizontalAlignment="Stretch"
+                                      VerticalAlignment="Stretch"
+                                      Visibility="{Binding HasLevel2, Converter={StaticResource BooleanToVisibilityConverter}}" />
+
+                        <!-- MODE SPLIT : DROITE (NIVEAU 2) -->
+                        <ListView Name="FileListLevel2"
+                                  Grid.Column="2"
+                                  ItemsSource="{Binding Level2Files}"
+                                  SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
+                                  MouseDoubleClick="FileList_MouseDoubleClick"
+                                  Background="Transparent"
+                                  BorderThickness="0"
+                                  ScrollViewer.VerticalScrollBarVisibility="Disabled"
+                                  HorizontalContentAlignment="Stretch"
+                                  Visibility="{Binding HasLevel2, Converter={StaticResource BooleanToVisibilityConverter}}">
+
+                            <ListView.ItemContainerStyle>
+                                <Style TargetType="ListViewItem">
+                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
+                                    <Setter Property="Visibility" Value="Visible"/>
+                                    <Style.Triggers>
+                                        <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
+                                            <Setter Property="Visibility" Value="Collapsed"/>
+                                        </DataTrigger>
+                                    </Style.Triggers>
+                                </Style>
+                            </ListView.ItemContainerStyle>
+
+                            <ListView.ContextMenu>
+                                <ContextMenu Opened="ElementsContextMenu_Opened">
+
+                                    <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z" Fill="#2ECC71" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                    <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                                  Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                    <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                                                  Fill="#E74C3C" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                    <Separator/>
+
+                                    <MenuItem Header="Aller vers Racine"
+                                              Tag="GoRoot"
+                                              Click="MoveToRoot_Click"
+                                              Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
+                                                  Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                    <MenuItem Header="Aller vers..."
+                                              Tag="GoTo"
+                                              
+                                              Style="{StaticResource ContextMenuItemStyle}">
+                                        <MenuItem.Icon>
+                                            <Path Data="M10,17L15,12L10,7V17Z"
+                                                  Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
+                                        </MenuItem.Icon>
+                                    </MenuItem>
+
+                                </ContextMenu>
+                            </ListView.ContextMenu>
+
+                            <!-- même ItemTemplate -->
+                            <ListView.ItemTemplate>
+                                <DataTemplate>
+                                    <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
+                                        <StackPanel>
+
+                                            <Grid>
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="80"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <Border Grid.Column="0" Background="#EAEDED" Padding="5" CornerRadius="8" Margin="0,0,15,0" Width="70" Height="70">
+                                                    <Image Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality">
+                                                        <Image.Source>
+                                                            <Binding Path="." Converter="{StaticResource FileTypeToIconConverter}"/>
+                                                        </Image.Source>
+                                                    </Image>
+                                                </Border>
+
+                                                <TextBlock Grid.Column="1"
+                                                           Text="{Binding Name}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="16"
+                                                           FontWeight="Bold"
+                                                           Foreground="#2C3E50"/>
+
+                                                <TextBlock Grid.Column="2"
+                                                           Text="{Binding Type}"
+                                                           VerticalAlignment="Center"
+                                                           FontSize="13"
+                                                           Foreground="#7F8C8D"
+                                                           Margin="10,0,0,0"/>
+                                            </Grid>
+
+                                            <Grid Visibility="{Binding Type, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=AnyDesk}"
+                                                  Margin="80,5,0,0">
+                                                <Grid.ColumnDefinitions>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="*"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                    <ColumnDefinition Width="Auto"/>
+                                                </Grid.ColumnDefinitions>
+
+                                                <StackPanel Grid.Column="0" Orientation="Horizontal"
+                                                            Visibility="{Binding WindowsUsername, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+                                                    <TextBlock Text="Utilisateur Windows:" VerticalAlignment="Center"
+                                                               FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+                                                    <TextBlock Text="{Binding WindowsUsername}" VerticalAlignment="Center"
+                                                               FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
+                                                               Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
+                                                    <Button Content="📋" Width="25" Height="25" Margin="2"
+                                                            ToolTip="Copier le nom d'utilisateur"
+                                                            Command="{Binding DataContext.CopyUsernameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding WindowsUsername}"
+                                                            Style="{StaticResource CopyButton}"/>
+                                                </StackPanel>
+
+                                                <StackPanel Grid.Column="2" Orientation="Horizontal" Margin="15,0,0,0"
+                                                            Visibility="{Binding WindowsPassword, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
+                                                    <TextBlock Text="Mot de passe Windows:" VerticalAlignment="Center"
+                                                               FontSize="12" FontWeight="Bold" Foreground="#34495E"/>
+                                                    <TextBlock VerticalAlignment="Center"
+                                                               FontSize="12" Foreground="#34495E" Margin="5,0,5,0"
+                                                               Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
+                                                        <Run Text="{Binding WindowsPassword, Converter={StaticResource DecryptPasswordConverter}, Mode=OneWay}"/>
+                                                    </TextBlock>
+                                                    <Button Content="📋" Width="25" Height="25" Margin="5,0,0,0"
+                                                            ToolTip="Copier le mot de passe"
+                                                            Command="{Binding DataContext.CopyPasswordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
+                                                            CommandParameter="{Binding WindowsPassword}"
+                                                            Style="{StaticResource CopyButton}"/>
+                                                </StackPanel>
+                                            </Grid>
+
+                                        </StackPanel>
+                                    </Border>
+                                </DataTemplate>
+                            </ListView.ItemTemplate>
+                        </ListView>
+
+                    </Grid>
+
                 </StackPanel>
             </ScrollViewer>
         </DockPanel>
@@ -264,7 +747,7 @@
                     CornerRadius="12"
                     Padding="20"
                     Margin="15,20,15,20">
-                <!-- Masquer si aucun mot de passe -->
+
                 <Border.Style>
                     <Style TargetType="Border">
                         <Style.Triggers>
@@ -276,7 +759,6 @@
                 </Border.Style>
 
                 <DockPanel LastChildFill="True">
-                    <!-- En-tête -->
                     <DockPanel DockPanel.Dock="Top" LastChildFill="False" Margin="0,0,0,12">
                         <TextBlock Text="Mots de passe supplémentaires"
                                    FontSize="18" FontWeight="Bold" Foreground="#34495E"
@@ -300,22 +782,17 @@
                         </Button>
                     </DockPanel>
 
-                    <!-- Liste des mots de passe avec ascenseur vertical -->
                     <ScrollViewer VerticalScrollBarVisibility="Auto">
                         <ItemsControl x:Name="PasswordsList" ItemsSource="{Binding PasswordEntries}">
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
-                                    <!-- Tag = ViewModel pour câbler le ContextMenu -->
                                     <Border Padding="10" Margin="0,0,0,10"
                                             Background="#FFFFFF" CornerRadius="8"
                                             BorderBrush="#ECECEC" BorderThickness="1"
                                             Tag="{Binding DataContext, ElementName=Root}">
 
-                                        <!-- Menu contextuel (MODIFIER / MONTER / DESCENDRE / SUPPRIMER) -->
                                         <Border.ContextMenu>
-                                            <!-- IMPORTANT : DataContext = l’item (FileModel) cliqué -->
                                             <ContextMenu DataContext="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource Self}}">
-                                                <!-- Modifier -->
                                                 <MenuItem Header="Modifier"
                                                           Style="{StaticResource ContextMenuItemStyle}"
                                                           Command="{Binding PlacementTarget.Tag.EditPasswordCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -326,7 +803,6 @@
                                                     </MenuItem.Icon>
                                                 </MenuItem>
 
-                                                <!-- Monter -->
                                                 <MenuItem Header="Monter"
                                                           Style="{StaticResource ContextMenuItemStyle}"
                                                           Command="{Binding PlacementTarget.Tag.MovePasswordUpCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -337,7 +813,6 @@
                                                     </MenuItem.Icon>
                                                 </MenuItem>
 
-                                                <!-- Descendre -->
                                                 <MenuItem Header="Descendre"
                                                           Style="{StaticResource ContextMenuItemStyle}"
                                                           Command="{Binding PlacementTarget.Tag.MovePasswordDownCommand, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
@@ -350,7 +825,6 @@
 
                                                 <Separator/>
 
-                                                <!-- Supprimer -->
                                                 <MenuItem Header="Supprimer"
                                                           Style="{StaticResource ContextMenuItemStyle}"
                                                           Foreground="#E74C3C"
@@ -364,13 +838,10 @@
                                             </ContextMenu>
                                         </Border.ContextMenu>
 
-                                        <!-- Contenu d’un mot de passe -->
                                         <StackPanel>
-                                            <!-- Nom -->
                                             <TextBlock Text="{Binding Name}"
                                                        FontWeight="Bold" FontSize="15" Foreground="#2C3E50"/>
 
-                                            <!-- Utilisateur -->
                                             <StackPanel Orientation="Horizontal" Margin="0,6,0,2">
                                                 <TextBlock Text="Nom d'utilisateur :" FontWeight="Bold" Foreground="#34495E"/>
                                                 <TextBlock Text="{Binding WindowsUsername}"
@@ -384,7 +855,6 @@
                                                         CommandParameter="{Binding WindowsUsername}"/>
                                             </StackPanel>
 
-                                            <!-- Mot de passe -->
                                             <StackPanel Orientation="Horizontal" Margin="0,2,0,0">
                                                 <TextBlock Text="Mot de passe :" FontWeight="Bold" Foreground="#34495E"/>
                                                 <TextBlock Margin="8,0,0,0" Foreground="#34495E"
@@ -408,19 +878,19 @@
             </Border>
         </Grid>
 
-        <!-- Toast de confirmation de copie -->
+        <!-- Toast -->
         <Border x:Name="CopyToast"
-Background="#323232"
-CornerRadius="6"
-Padding="10"
-HorizontalAlignment="Right"
-VerticalAlignment="Top"
-Margin="0,15,15,0"
-Opacity="0.95"
-Visibility="{Binding IsCopyToastVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
+                Background="{Binding CopyToastBackground}"
+                CornerRadius="6"
+                Padding="10"
+                HorizontalAlignment="Right"
+                VerticalAlignment="Top"
+                Margin="0,15,15,0"
+                Opacity="0.95"
+                Visibility="{Binding IsCopyToastVisible, Converter={StaticResource BooleanToVisibilityConverter}}">
             <TextBlock Text="{Binding CopyToastText}"
-       Foreground="White"
-       FontWeight="SemiBold" />
+                       Foreground="White"
+                       FontWeight="SemiBold" />
         </Border>
 
         <!-- Flèches de tri (zone principale) -->
@@ -428,7 +898,7 @@ Visibility="{Binding IsCopyToastVisible, Converter={StaticResource BooleanToVisi
             <Button Content="&#x2191;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40"
                     FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveUpFileCommand}" Margin="0,0,10,0"/>
             <Button Content="&#x2193;" FontSize="20" Background="White" Foreground="SkyBlue" Width="40" Height="40"
-                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveDownFileCommand}" Margin="0,0,10,0"/>
+                    FontWeight="Bold" BorderBrush="SkyBlue" BorderThickness="2" Command="{Binding MoveDownFileCommand}" Margin="0,8,10,0"/>
         </StackPanel>
     </Grid>
 </Window>

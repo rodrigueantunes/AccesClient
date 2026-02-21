@@ -1,0 +1,40 @@
+﻿<Window x:Class="AccesClientUpdaterHost.MainWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Mise à jour Accès Client"
+        WindowStartupLocation="CenterScreen"
+        ResizeMode="NoResize"
+        SizeToContent="WidthAndHeight"
+        Background="#EAEDED">
+    <Border Background="White" CornerRadius="10" Padding="18" Width="560">
+        <Grid>
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+
+            <TextBlock x:Name="TitleText"
+                       FontSize="18"
+                       FontWeight="Bold"
+                       Foreground="#34495E"
+                       Text="Mise à jour en cours"/>
+
+            <TextBlock x:Name="StatusText"
+                       Grid.Row="1"
+                       Margin="0,10,0,0"
+                       Text="Initialisation…"
+                       TextWrapping="Wrap"
+                       Foreground="#34495E"
+                       FontSize="13"/>
+
+            <ProgressBar x:Name="Bar"
+                         Grid.Row="2"
+                         Margin="0,12,0,0"
+                         Height="18"
+                         Minimum="0"
+                         Maximum="100"
+                         Value="0"/>
+        </Grid>
+    </Border>
+</Window>

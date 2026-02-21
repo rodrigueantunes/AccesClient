@@ -35,6 +35,7 @@ namespace AccesClientWPF.Converters
                         "AnyDesk" => "pack://application:,,,/AccesClientWPF;component/Resources/anydesk.png",
                         "Dossier" => "pack://application:,,,/AccesClientWPF;component/Resources/dossier.png",
                         "Fichier" => "pack://application:,,,/AccesClientWPF;component/Resources/fichier.png",
+                        "Rangement" => "pack://application:,,,/AccesClientWPF;component/Resources/fleche.png",
                         _ => "pack://application:,,,/AccesClientWPF;component/Resources/default.png"
                     };
                     return new BitmapImage(new Uri(iconPath));
@@ -48,6 +49,7 @@ namespace AccesClientWPF.Converters
                         "AnyDesk" => "pack://application:,,,/AccesClientWPF;component/Resources/anydesk.png",
                         "Dossier" => "pack://application:,,,/AccesClientWPF;component/Resources/dossier.png",
                         "Fichier" => "pack://application:,,,/AccesClientWPF;component/Resources/fichier.png",
+                        "Rangement" => "pack://application:,,,/AccesClientWPF;component/Resources/fleche.png",
                         _ => "pack://application:,,,/AccesClientWPF;component/Resources/default.png"
                     };
                     return new BitmapImage(new Uri(iconPath));

@@ -9,30 +9,39 @@ using AccesClientWPF.Models;
 using Newtonsoft.Json;
 using AccesClientWPF.Helpers;
 using System.Windows.Media.Imaging;
-using System.Windows.Controls.Primitives;
 
 namespace AccesClientWPF.Views
 {
     public partial class AddEntryWindow : Window
     {
         private readonly string _jsonFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "database.json");
+
         private ObservableCollection<FileModel> _files = new();
         private ObservableCollection<ClientModel> _clients;
         private FileModel _editingFile;
+
+        // ✅ NEW : mode "source injectée" (Share / .antclient)
+        private readonly ObservableCollection<FileModel> _injectedFiles;
+        private readonly bool _useInjectedFiles;
 
         public FileModel FileEntry { get; private set; }
 
         // "MotDePasse" si on vient du bouton orange (optionnel)
         public string PresetType { get; set; }
 
-        public AddEntryWindow(ObservableCollection<ClientModel> clients, ClientModel selectedClient = null, FileModel editingFile = null)
+        public AddEntryWindow(
+            ObservableCollection<ClientModel> clients,
+            ClientModel selectedClient = null,
+            FileModel editingFile = null,
+            ObservableCollection<FileModel> injectedFiles = null) // ✅ NEW
         {
             InitializeComponent();
 
-            // Défenses anti-null
             _clients = clients ?? new ObservableCollection<ClientModel>();
 
-            // Si pas de selectedClient mais on édite un élément → le déduire par nom
+            _injectedFiles = injectedFiles;
+            _useInjectedFiles = injectedFiles != null;
+
             if (selectedClient == null && editingFile != null && !string.IsNullOrEmpty(editingFile.Client))
             {
                 selectedClient = _clients.FirstOrDefault(c => c.Name == editingFile.Client);
@@ -44,58 +53,65 @@ namespace AccesClientWPF.Views
             else if (_clients.Count > 0 && CmbClient.SelectedItem == null)
                 CmbClient.SelectedIndex = 0;
 
-            // Si on a reçu un selectedClient, on verrouille le choix (comportement d'origine)
             CmbClient.IsEnabled = selectedClient == null;
 
             _editingFile = editingFile;
+
             LoadFiles();
+
+            // Charger liste rangements + refresh quand client change
+            CmbClient.SelectionChanged += (_, __) => RefreshRangements();
+            RefreshRangements();
 
             // Pré-remplissage en mode édition
             if (_editingFile != null)
             {
                 TxtName.Text = _editingFile.Name ?? string.Empty;
 
-                // Sélection du type en sécurité (Tag peut être null)
                 var typeItem = CmbType.Items.OfType<ComboBoxItem>()
-                                    .FirstOrDefault(i => string.Equals(i.Tag as string, _editingFile.Type, StringComparison.OrdinalIgnoreCase));
+                    .FirstOrDefault(i => string.Equals(i.Tag as string, _editingFile.Type, StringComparison.OrdinalIgnoreCase));
                 if (typeItem != null)
-                {
                     CmbType.SelectedItem = typeItem;
-                }
-                else if (!string.IsNullOrEmpty(_editingFile.Type))
+
+                // Préselection rangement (si présent)
+                if (!string.IsNullOrWhiteSpace(_editingFile.RangementParent))
                 {
-                    // fallback : sélectionne rien si type inconnu, et les panneaux resteront cachés
+                    var match = CmbRangementParent.Items.Cast<object>()
+                        .Select(x => x?.ToString())
+                        .FirstOrDefault(x => string.Equals(x, _editingFile.RangementParent, StringComparison.OrdinalIgnoreCase));
+
+                    if (match != null)
+                        CmbRangementParent.SelectedItem = match;
+                }
+                else
+                {
+                    CmbRangementParent.SelectedIndex = 0; // racine
                 }
 
-                // Pour éviter le crash : on ne split que si FullPath est non vide
                 string[] credentials = Array.Empty<string>();
                 if (!string.IsNullOrEmpty(_editingFile.FullPath))
                     credentials = _editingFile.FullPath.Split(':');
 
-                // Remplissage selon le type
                 if (string.Equals(_editingFile.Type, "RDS", StringComparison.OrdinalIgnoreCase))
                 {
                     TxtIpDns.Text = credentials.ElementAtOrDefault(0) ?? string.Empty;
                     TxtUsername.Text = credentials.ElementAtOrDefault(1) ?? string.Empty;
-                    // volontairement vide en édition pour que l'utilisateur resaisisse si besoin
-                    TxtPassword.Password = string.Empty;
+                    // mdp laissé vide (conservation gérée au save)
                 }
                 else if (string.Equals(_editingFile.Type, "AnyDesk", StringComparison.OrdinalIgnoreCase))
                 {
                     TxtAnydeskId.Text = credentials.ElementAtOrDefault(0) ?? string.Empty;
-                    // On laisse vide pour ne pas écraser si l'utilisateur ne retape rien
-                    TxtAnydeskPassword.Password = string.Empty;
 
-                    // Champs Windows
+                    // ✅ pré-remplir password AnyDesk (2e partie du FullPath)
+                    var anydeskEncrypted = credentials.ElementAtOrDefault(1) ?? string.Empty;
+                    var anydeskDec = EncryptionHelper.Decrypt(anydeskEncrypted);
+                    TxtAnydeskPassword.Password = string.IsNullOrEmpty(anydeskDec) ? "" : anydeskDec;
+
+                    // ✅ Windows
                     TxtWindowsUsername.Text = _editingFile.WindowsUsername ?? string.Empty;
-                    if (!string.IsNullOrEmpty(_editingFile.WindowsPassword))
-                    {
-                        var dec = EncryptionHelper.Decrypt(_editingFile.WindowsPassword);
-                        if (!string.IsNullOrEmpty(dec))
-                            TxtWindowsPassword.Password = dec;
-                        else
-                            TxtWindowsPassword.Password = string.Empty;
-                    }
+
+                    var winDec = EncryptionHelper.Decrypt(_editingFile.WindowsPassword ?? "");
+                    TxtWindowsPassword.Password = string.IsNullOrEmpty(winDec) ? "" : winDec;
                 }
                 else if (string.Equals(_editingFile.Type, "VPN", StringComparison.OrdinalIgnoreCase))
                 {
@@ -118,63 +134,84 @@ namespace AccesClientWPF.Views
                             IconPreview.Source = bitmap;
                             IconPreview.Visibility = Visibility.Visible;
                         }
-                        catch { /* pas grave */ }
+                        catch { }
                     }
                 }
                 else if (string.Equals(_editingFile.Type, "MotDePasse", StringComparison.OrdinalIgnoreCase))
                 {
-                    // Forcer la sélection / verrouiller le type
-                    SetTypeMotDePasse();
-
-                    // Remplir les champs
                     TxtPasswordUser.Text = _editingFile.WindowsUsername ?? string.Empty;
 
-                    if (!string.IsNullOrEmpty(_editingFile.WindowsPassword))
-                    {
-                        var dec = EncryptionHelper.Decrypt(_editingFile.WindowsPassword);
-                        TxtPasswordPass.Password = dec ?? string.Empty;
-                    }
-                    else
-                    {
-                        TxtPasswordPass.Password = string.Empty;
-                    }
+                    var dec = EncryptionHelper.Decrypt(_editingFile.WindowsPassword ?? "");
+                    TxtPasswordPass.Password = string.IsNullOrEmpty(dec) ? "" : dec;
                 }
+                else if (string.Equals(_editingFile.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
+                {
+                    // rien
+                }
+
+                CmbType_SelectionChanged(this, null);
             }
-            else
-            {
-                // Nouveau : si on a un type imposé ("MotDePasse" côté droit), l'appliquer
-                if (string.Equals(PresetType, "MotDePasse", StringComparison.OrdinalIgnoreCase))
-                    SetTypeMotDePasse();
-                else if (CmbType.Items.Count > 0 && CmbType.SelectedIndex < 0)
-                    CmbType.SelectedIndex = 0;
-            }
+
+            if (!string.IsNullOrWhiteSpace(PresetType))
+                SetTypeMotDePasse();
         }
 
         private void CmbType_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
             var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag as string;
 
-            PanelRDS.Visibility = string.Equals(selectedType, "RDS", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
-            PanelAnyDesk.Visibility = string.Equals(selectedType, "AnyDesk", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
-            PanelVPN.Visibility = string.Equals(selectedType, "VPN", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
-            PanelFolder.Visibility = string.Equals(selectedType, "Dossier", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
-            PanelFile.Visibility = string.Equals(selectedType, "Fichier", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
-            PanelPassword.Visibility = string.Equals(selectedType, "MotDePasse", StringComparison.OrdinalIgnoreCase) ? Visibility.Visible : Visibility.Collapsed;
+            PanelRDS.Visibility = Visibility.Collapsed;
+            PanelAnyDesk.Visibility = Visibility.Collapsed;
+            PanelVPN.Visibility = Visibility.Collapsed;
+            PanelFolder.Visibility = Visibility.Collapsed;
+            PanelFile.Visibility = Visibility.Collapsed;
+            PanelPassword.Visibility = Visibility.Collapsed;
+
+            // Par défaut : on peut choisir Racine / Rangement
+            CmbRangementParent.IsEnabled = true;
+
+            if (string.Equals(selectedType, "RDS", StringComparison.OrdinalIgnoreCase))
+                PanelRDS.Visibility = Visibility.Visible;
+            else if (string.Equals(selectedType, "AnyDesk", StringComparison.OrdinalIgnoreCase))
+                PanelAnyDesk.Visibility = Visibility.Visible;
+            else if (string.Equals(selectedType, "VPN", StringComparison.OrdinalIgnoreCase))
+                PanelVPN.Visibility = Visibility.Visible;
+            else if (string.Equals(selectedType, "Dossier", StringComparison.OrdinalIgnoreCase))
+                PanelFolder.Visibility = Visibility.Visible;
+            else if (string.Equals(selectedType, "Fichier", StringComparison.OrdinalIgnoreCase))
+                PanelFile.Visibility = Visibility.Visible;
+            else if (string.Equals(selectedType, "MotDePasse", StringComparison.OrdinalIgnoreCase))
+                PanelPassword.Visibility = Visibility.Visible;
+            else if (string.Equals(selectedType, "Rangement", StringComparison.OrdinalIgnoreCase))
+            {
+                // Un rangement est toujours à la racine
+                CmbRangementParent.SelectedIndex = 0;
+                CmbRangementParent.IsEnabled = false;
+            }
         }
 
         public void SetTypeMotDePasse()
         {
-            var item = CmbType.Items.OfType<ComboBoxItem>().FirstOrDefault(i => string.Equals(i.Tag as string, "MotDePasse", StringComparison.OrdinalIgnoreCase));
+            var item = CmbType.Items.OfType<ComboBoxItem>()
+                .FirstOrDefault(i => string.Equals(i.Tag as string, "MotDePasse", StringComparison.OrdinalIgnoreCase));
             if (item != null)
             {
                 CmbType.SelectedItem = item;
                 CmbType.IsEnabled = false;
-                PanelPassword.Visibility = Visibility.Visible; // sécurité
+                PanelPassword.Visibility = Visibility.Visible;
             }
         }
 
         private void LoadFiles()
         {
+            // ✅ MODE SHARE : on ne lit JAMAIS database.json
+            if (_useInjectedFiles)
+            {
+                _files = _injectedFiles ?? new ObservableCollection<FileModel>();
+                return;
+            }
+
+            // MODE MAIN (comme avant)
             if (File.Exists(_jsonFilePath))
             {
                 var jsonData = File.ReadAllText(_jsonFilePath);
@@ -187,39 +224,104 @@ namespace AccesClientWPF.Views
         {
             if (string.IsNullOrWhiteSpace(TxtName.Text) || CmbType.SelectedItem == null || CmbClient.SelectedItem == null)
             {
-                MessageBox.Show("Veuillez remplir tous les champs.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show("Veuillez remplir tous les champs obligatoires.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Warning);
                 return;
             }
 
-            var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag as string ?? string.Empty;
+            var selectedType = (CmbType.SelectedItem as ComboBoxItem)?.Tag as string;
+            if (string.IsNullOrWhiteSpace(selectedType))
+            {
+                MessageBox.Show("Type invalide.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Warning);
+                return;
+            }
+
+            var clientName = ((ClientModel)CmbClient.SelectedItem).Name;
+
+            // --- RangementParent ---
+            string rangementParent = null;
+            var selectedParentText = CmbRangementParent.SelectedItem?.ToString();
+            if (!string.IsNullOrWhiteSpace(selectedParentText) && selectedParentText != "(Racine)")
+                rangementParent = selectedParentText;
+
+            // Un rangement ne peut pas être dans un rangement
+            if (string.Equals(selectedType, "Rangement", StringComparison.OrdinalIgnoreCase))
+                rangementParent = null;
+
+            // --- Unicité rangement (même client + même nom) ---
+            if (string.Equals(selectedType, "Rangement", StringComparison.OrdinalIgnoreCase))
+            {
+                // ✅ IMPORTANT : en mode Share, on valide contre _files (= .antclient)
+                var sourceFiles = _files ?? new ObservableCollection<FileModel>();
+
+                bool isDuplicate = sourceFiles.Any(f =>
+                    string.Equals(f.Client, clientName, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(f.Type, "Rangement", StringComparison.OrdinalIgnoreCase)
+                    && string.IsNullOrWhiteSpace(f.RangementParent)
+                    && string.Equals(f.Name?.Trim(), TxtName.Text.Trim(), StringComparison.OrdinalIgnoreCase)
+                    && !ReferenceEquals(f, _editingFile));
+
+                if (!isDuplicate && _editingFile != null &&
+                    !string.Equals(_editingFile.Name?.Trim(), TxtName.Text.Trim(), StringComparison.OrdinalIgnoreCase))
+                {
+                    isDuplicate = sourceFiles.Any(f =>
+                        string.Equals(f.Client, clientName, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(f.Type, "Rangement", StringComparison.OrdinalIgnoreCase)
+                        && string.IsNullOrWhiteSpace(f.RangementParent)
+                        && string.Equals(f.Name?.Trim(), TxtName.Text.Trim(), StringComparison.OrdinalIgnoreCase));
+                }
+
+                if (isDuplicate)
+                {
+                    MessageBox.Show("Ce rangement existe déjà pour ce client. Merci de choisir un nom unique.", "Doublon", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
+            // --- Construction entry ---
             string fullPath = string.Empty;
             string customIconPath = string.Empty;
-
-            // Ces deux-là servent pour AnyDesk / MotDePasse (et potentiellement autres)
             string windowsUsername = string.Empty;
             string windowsPassword = string.Empty;
 
             if (string.Equals(selectedType, "RDS", StringComparison.OrdinalIgnoreCase))
             {
-                string encryptedPassword = EncryptionHelper.Encrypt(TxtPassword.Password ?? string.Empty);
-                fullPath = $"{TxtIpDns.Text}:{TxtUsername.Text}:{encryptedPassword}";
+                var ip = (TxtIpDns.Text ?? string.Empty).Trim();
+                var user = (TxtUsername.Text ?? string.Empty).Trim();
+
+                string encryptedPass;
+                if (!string.IsNullOrEmpty(TxtPassword.Password))
+                    encryptedPass = EncryptionHelper.Encrypt(TxtPassword.Password);
+                else if (_editingFile != null && !string.IsNullOrEmpty(_editingFile.FullPath))
+                {
+                    var parts = _editingFile.FullPath.Split(':');
+                    encryptedPass = parts.ElementAtOrDefault(2) ?? string.Empty;
+                }
+                else
+                    encryptedPass = string.Empty;
+
+                fullPath = $"{ip}:{user}:{encryptedPass}";
             }
             else if (string.Equals(selectedType, "AnyDesk", StringComparison.OrdinalIgnoreCase))
             {
-                string encryptedPassword = EncryptionHelper.Encrypt(TxtAnydeskPassword.Password ?? string.Empty);
-                fullPath = $"{TxtAnydeskId.Text}:{encryptedPassword}";
+                var id = (TxtAnydeskId.Text ?? string.Empty).Trim();
 
-                windowsUsername = TxtWindowsUsername.Text ?? string.Empty;
+                string encryptedPass = string.Empty;
+                if (!string.IsNullOrEmpty(TxtAnydeskPassword.Password))
+                    encryptedPass = EncryptionHelper.Encrypt(TxtAnydeskPassword.Password);
+                else if (_editingFile != null && !string.IsNullOrEmpty(_editingFile.FullPath))
+                {
+                    var parts = _editingFile.FullPath.Split(':');
+                    encryptedPass = parts.ElementAtOrDefault(1) ?? string.Empty;
+                }
 
-                // Si le champ est vide et qu'on édite, conserver l'ancien chiffré
+                fullPath = $"{id}:{encryptedPass}";
+
+                windowsUsername = (TxtWindowsUsername.Text ?? string.Empty).Trim();
+
                 if (!string.IsNullOrEmpty(TxtWindowsPassword.Password))
-                {
                     windowsPassword = EncryptionHelper.Encrypt(TxtWindowsPassword.Password);
-                }
                 else if (_editingFile != null && !string.IsNullOrEmpty(_editingFile.WindowsPassword))
-                {
                     windowsPassword = _editingFile.WindowsPassword;
-                }
             }
             else if (string.Equals(selectedType, "VPN", StringComparison.OrdinalIgnoreCase))
             {
@@ -236,62 +338,42 @@ namespace AccesClientWPF.Views
             }
             else if (string.Equals(selectedType, "MotDePasse", StringComparison.OrdinalIgnoreCase))
             {
-                // Pas de FullPath pour ce type
                 windowsUsername = (TxtPasswordUser.Text ?? string.Empty).Trim();
 
-                // Si on saisit un mot de passe → chiffrer
                 if (!string.IsNullOrWhiteSpace(TxtPasswordPass.Password))
-                {
                     windowsPassword = EncryptionHelper.Encrypt(TxtPasswordPass.Password.Trim());
-                }
-                // Sinon, si on édite et il y en a déjà un, on le conserve
                 else if (_editingFile != null && !string.IsNullOrEmpty(_editingFile.WindowsPassword))
-                {
                     windowsPassword = _editingFile.WindowsPassword;
-                }
                 else
-                {
                     windowsPassword = string.Empty;
-                }
+            }
+            else if (string.Equals(selectedType, "Rangement", StringComparison.OrdinalIgnoreCase))
+            {
+                fullPath = string.Empty;
             }
 
             var newEntry = new FileModel
             {
-                Name = TxtName.Text,
+                Name = TxtName.Text.Trim(),
                 Type = selectedType,
                 FullPath = fullPath,
-                Client = ((ClientModel)CmbClient.SelectedItem).Name,
+                Client = clientName,
                 CustomIconPath = customIconPath,
                 WindowsUsername = windowsUsername,
-                WindowsPassword = windowsPassword
+                WindowsPassword = windowsPassword,
+                RangementParent = rangementParent
             };
 
             FileEntry = newEntry;
-
-            // ⚠️ NE PAS réécraser ici pour MotDePasse : on a déjà géré la conservation de l'ancien si champ vide.
-            // (Ton ancien code ré-encryptait systématiquement le PasswordBox, effaçant l'ancien si vide.)
-
             DialogResult = true;
             Close();
-        }
-
-        private AccesClientWPF.Models.DatabaseModel LoadDatabase()
-        {
-            if (File.Exists(_jsonFilePath))
-            {
-                var jsonData = File.ReadAllText(_jsonFilePath);
-                return JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(jsonData) ?? new AccesClientWPF.Models.DatabaseModel();
-            }
-            return new AccesClientWPF.Models.DatabaseModel();
         }
 
         private void BrowseVpnExecutable_Click(object sender, RoutedEventArgs e)
         {
             var openFileDialog = new OpenFileDialog();
             if (openFileDialog.ShowDialog() == true)
-            {
                 TxtVpnPath.Text = openFileDialog.FileName;
-            }
         }
 
         private void BrowseFile_Click(object sender, RoutedEventArgs e)
@@ -303,9 +385,7 @@ namespace AccesClientWPF.Views
             };
 
             if (openFileDialog.ShowDialog() == true)
-            {
                 TxtFilePath.Text = openFileDialog.FileName;
-            }
         }
 
         private void BrowseIcon_Click(object sender, RoutedEventArgs e)
@@ -320,7 +400,6 @@ namespace AccesClientWPF.Views
             {
                 TxtIconPath.Text = openFileDialog.FileName;
 
-                // Aperçu
                 try
                 {
                     BitmapImage bitmap = new BitmapImage(new Uri(openFileDialog.FileName));
@@ -353,42 +432,54 @@ namespace AccesClientWPF.Views
             }
         }
 
-        private void SaveFiles()
+        private void RefreshRangements()
         {
-            AccesClientWPF.Models.DatabaseModel existingDatabase;
+            CmbRangementParent.Items.Clear();
+            CmbRangementParent.Items.Add("(Racine)");
 
-            if (File.Exists(_jsonFilePath))
+            if (CmbClient.SelectedItem is not ClientModel client)
             {
-                var jsonData = File.ReadAllText(_jsonFilePath);
-                existingDatabase = JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(jsonData) ?? new AccesClientWPF.Models.DatabaseModel();
-            }
-            else
-            {
-                existingDatabase = new AccesClientWPF.Models.DatabaseModel();
+                CmbRangementParent.SelectedIndex = 0;
+                return;
             }
 
-            foreach (var client in _clients)
+            // ✅ IMPORTANT : la source des rangements dépend du mode
+            // - Share : _files = .antclient injecté
+            // - Main  : _files = database.json chargé
+            var sourceFiles = _files ?? new ObservableCollection<FileModel>();
+
+            var rangements = sourceFiles
+                .Where(f => string.Equals(f.Client, client.Name, StringComparison.OrdinalIgnoreCase)
+                            && string.Equals(f.Type, "Rangement", StringComparison.OrdinalIgnoreCase)
+                            && string.IsNullOrWhiteSpace(f.RangementParent))
+                .Select(f => f.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase);
+
+            foreach (var r in rangements)
+                CmbRangementParent.Items.Add(r);
+
+            CmbRangementParent.SelectedIndex = 0;
+        }
+
+        private void ShowExistingElements_Click(object sender, RoutedEventArgs e)
+        {
+            if (CmbClient.SelectedItem is not ClientModel client)
             {
-                if (!existingDatabase.Clients.Any(c => c.Name == client.Name))
-                {
-                    existingDatabase.Clients.Add(client);
-                }
+                MessageBox.Show("Choisis d’abord un client.", "Info", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
 
-            foreach (var file in _files)
+            // ✅ IMPORTANT :
+            // _files = soit database.json (main), soit .antclient injecté (share)
+            var w = new ExistingElementsWindow(client, _files)
             {
-                var existingFile = existingDatabase.Files.FirstOrDefault(f => f.Name == file.Name && f.Client == file.Client);
-                if (existingFile != null)
-                {
-                    existingDatabase.Files[existingDatabase.Files.IndexOf(existingFile)] = file;
-                }
-                else
-                {
-                    existingDatabase.Files.Add(file);
-                }
-            }
+                Owner = this
+            };
+            w.ShowDialog();
 
-            File.WriteAllText(_jsonFilePath, JsonConvert.SerializeObject(existingDatabase, Formatting.Indented));
+            RefreshRangements();
         }
 
         private void Cancel_Click(object sender, RoutedEventArgs e)

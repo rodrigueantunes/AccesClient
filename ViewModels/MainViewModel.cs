@@ -17,26 +17,137 @@ using System.Threading.Tasks;
 using System.Timers;
 using System.Windows.Controls;
 
+
+
 namespace AccesClientWPF.ViewModels
 {
     public class MainViewModel : INotifyPropertyChanged
     {
         private readonly string _jsonFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "database.json");
         private readonly string _accountsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "rds_accounts.json");
-
+        
         private bool _isMultiMonitor;
         public bool IsMultiMonitor
         {
             get => _isMultiMonitor;
+
             set
             {
+                
                 if (_isMultiMonitor != value)
                 {
                     _isMultiMonitor = value;
                     OnPropertyChanged(nameof(IsMultiMonitor));
+
+                    if (_isMultiMonitor)
+                    {
+                        RefreshMonitors();
+                        UseAllMonitors = true;
+                    }
+                    else
+                    {
+                        MonitorSlots = new ObservableCollection<MonitorSelectionSlot>();
+                    }
                 }
             }
         }
+
+        public string AppVersionText => Helpers.AppVersion.CurrentString;
+        public string WindowTitle => $"Accès Client {AppVersionText}";
+
+        private bool _useAllMonitors = true;
+        public bool UseAllMonitors
+        {
+            get => _useAllMonitors;
+            set
+            {
+                if (_useAllMonitors != value)
+                {
+                    _useAllMonitors = value;
+                    OnPropertyChanged(nameof(UseAllMonitors));
+
+                    if (!IsMultiMonitor)
+                        return;
+
+                    if (_useAllMonitors)
+                    {
+                        SelectedMonitorCount = AvailableMonitorCount;
+                        MonitorSlots = new ObservableCollection<MonitorSelectionSlot>();
+                    }
+                    else
+                    {
+                        if (SelectedMonitorCount < 1)
+                            SelectedMonitorCount = 1;
+
+                        BuildMonitorSlots(SelectedMonitorCount);
+                    }
+                }
+            }
+        }
+
+
+        private int _availableMonitorCount;
+        public int AvailableMonitorCount
+        {
+            get => _availableMonitorCount;
+            private set
+            {
+                if (_availableMonitorCount != value)
+                {
+                    _availableMonitorCount = value;
+                    OnPropertyChanged(nameof(AvailableMonitorCount));
+                }
+            }
+        }
+
+        private ObservableCollection<int> _monitorCountOptions = new();
+        public ObservableCollection<int> MonitorCountOptions
+        {
+            get => _monitorCountOptions;
+            private set
+            {
+                if (!ReferenceEquals(_monitorCountOptions, value))
+                {
+                    _monitorCountOptions = value;
+                    OnPropertyChanged(nameof(MonitorCountOptions));
+                }
+            }
+        }
+
+        private int _selectedMonitorCount = 1;
+        public int SelectedMonitorCount
+        {
+            get => _selectedMonitorCount;
+            set
+            {
+                var clamped = Math.Max(1, Math.Min(value, Math.Max(1, AvailableMonitorCount)));
+                if (_selectedMonitorCount != clamped)
+                {
+                    _selectedMonitorCount = clamped;
+                    OnPropertyChanged(nameof(SelectedMonitorCount));
+
+                    if (IsMultiMonitor && !UseAllMonitors)
+                        BuildMonitorSlots(_selectedMonitorCount);
+                }
+            }
+        }
+
+        private ObservableCollection<MonitorSelectionSlot> _monitorSlots = new();
+        public ObservableCollection<MonitorSelectionSlot> MonitorSlots
+        {
+            get => _monitorSlots;
+            private set
+            {
+                if (!ReferenceEquals(_monitorSlots, value))
+                {
+                    _monitorSlots = value;
+                    OnPropertyChanged(nameof(MonitorSlots));
+                }
+            }
+        }
+
+        private List<AccesClientWPF.Models.ScreenItem> _allScreens = new();
+        private bool _isUpdatingMonitorSlots;
 
         public ObservableCollection<ClientModel> Clients { get; set; } = new();
         public ObservableCollection<FileModel> FilteredFiles { get; set; } = new();
@@ -48,8 +159,76 @@ namespace AccesClientWPF.ViewModels
             private set { _passwordEntries = value; OnPropertyChanged(nameof(PasswordEntries)); }
         }
 
+        private async void ShowScreenNumbers()
+        {
+            // refresh rapide au cas où
+            _allScreens = Helpers.MonitorHelper.GetAllScreens();
 
-        // Copie presse-papiers
+            // On affiche 2 secondes
+            var windows = new List<Window>();
+
+            try
+            {
+                foreach (var s in _allScreens)
+                {
+                    var boundsDips = AccesClientWPF.Views.ScreenNumberOverlayWindow.PixelsToDips(
+                        s.Left, s.Top, s.Width, s.Height);
+
+                    var w = new AccesClientWPF.Views.ScreenNumberOverlayWindow(s.Index + 1, boundsDips);
+                    windows.Add(w);
+                    w.Show();
+                }
+
+                await System.Threading.Tasks.Task.Delay(2000);
+            }
+            finally
+            {
+                foreach (var w in windows)
+                {
+                    try { w.Close(); } catch { /* ignore */ }
+                }
+            }
+        }
+
+        public ObservableCollection<FileModel> RootFiles { get; } = new();
+        public ObservableCollection<FileModel> Level2Files { get; } = new();
+
+        private FileModel _selectedRootItem;
+        public FileModel SelectedRootItem
+        {
+            get => _selectedRootItem;
+            set
+            {
+                _selectedRootItem = value;
+                OnPropertyChanged(nameof(SelectedRootItem));
+
+                if (_selectedRootItem?.Type == "Rangement")
+                    SelectedRangementName = _selectedRootItem.Name;
+            }
+        }
+
+        private string _selectedRangementName;
+        public string SelectedRangementName
+        {
+            get => _selectedRangementName;
+            set
+            {
+                _selectedRangementName = value;
+                OnPropertyChanged(nameof(SelectedRangementName));
+                RefreshLevel2Files();
+            }
+        }
+
+        private bool _hasLevel2;
+        public bool HasLevel2
+        {
+            get => _hasLevel2;
+            set { _hasLevel2 = value; OnPropertyChanged(nameof(HasLevel2)); }
+        }
+
+
+        public ICommand ShowScreenNumbersCommand { get; }
+
         public ICommand CopyUsernameCommand => new RelayCommand(u =>
         {
             var txt = u as string ?? string.Empty;
@@ -88,7 +267,6 @@ namespace AccesClientWPF.ViewModels
                 }
             }
         }
-
 
         private ClientModel selectedClient;
         public ClientModel SelectedClient
@@ -149,10 +327,221 @@ namespace AccesClientWPF.ViewModels
             ManageJsonCommand = new RelayCommand(OpenRdsAccountWindow);
             ManageClientsCommand = new RelayCommand(OpenClientManagementWindow);
             AddFileCommand = new RelayCommand(_ => AddFile());
-            MoveUpFileCommand = new RelayCommand(_ => MoveUp(), _ => SelectedFile != null && FilteredFiles.IndexOf(SelectedFile) > 0);
-            MoveDownFileCommand = new RelayCommand(_ => MoveDown(), _ => SelectedFile != null && FilteredFiles.IndexOf(SelectedFile) < FilteredFiles.Count - 1);
+            MoveUpFileCommand = new RelayCommand(_ => MoveUp(), _ => CanMoveSelected(-1));
+            MoveDownFileCommand = new RelayCommand(_ => MoveDown(), _ => CanMoveSelected(+1));
+
+            ShowScreenNumbersCommand = new RelayCommand(_ => ShowScreenNumbers());
+
+            RefreshMonitors();
+            SystemEvents.DisplaySettingsChanged += (_, __) => Application.Current.Dispatcher.Invoke(RefreshMonitors);
 
             LoadClients();
+        }
+
+        public ObservableCollection<string> AvailableRangements { get; } = new();
+
+        private void ReloadAvailableRangements()
+        {
+            AvailableRangements.Clear();
+
+            if (SelectedClient == null) return;
+
+            var db = LoadDatabase();
+
+            var rangements = db.Files
+                .Where(f => f.Client == SelectedClient.Name)
+                .Where(f => string.Equals(f.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
+                .Where(f => string.IsNullOrWhiteSpace(f.RangementParent))
+                .Select(f => f.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n);
+
+            foreach (var r in rangements)
+                AvailableRangements.Add(r);
+        }
+
+        private bool CanMoveSelected(int delta)
+        {
+            if (SelectedClient == null) return false;
+
+            var item = GetSelectedCenterItem();
+            if (item == null) return false;
+
+            var db = LoadDatabase();
+
+            var center = db.Files
+                .Where(f => f.Client == SelectedClient.Name && f.Type != "MotDePasse")
+                .ToList();
+
+            bool inLevel2 = !string.IsNullOrWhiteSpace(item.RangementParent);
+
+            var scope = center
+                .Where(f => inLevel2
+                    ? string.Equals(f.RangementParent ?? "", item.RangementParent ?? "", StringComparison.OrdinalIgnoreCase)
+                    : string.IsNullOrWhiteSpace(f.RangementParent))
+                .ToList();
+
+            int idx = scope.FindIndex(f =>
+                string.Equals(f.Name, item.Name, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(f.Type, item.Type, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(f.RangementParent ?? "", item.RangementParent ?? "", StringComparison.OrdinalIgnoreCase));
+
+            if (idx < 0) return false;
+
+            int newIdx = idx + delta;
+            return newIdx >= 0 && newIdx < scope.Count;
+        }
+
+        private void RefreshMonitors()
+        {
+            _allScreens = MonitorHelper.OrderByWindowsLayout(MonitorHelper.GetAllScreens());
+
+            AvailableMonitorCount = _allScreens.Count;
+            MonitorCountOptions = new ObservableCollection<int>(Enumerable.Range(1, Math.Max(1, AvailableMonitorCount)));
+
+            if (!IsMultiMonitor)
+                return;
+
+            if (UseAllMonitors)
+            {
+                SelectedMonitorCount = AvailableMonitorCount;
+                MonitorSlots = new ObservableCollection<MonitorSelectionSlot>();
+                return;
+            }
+
+            if (SelectedMonitorCount > AvailableMonitorCount)
+                SelectedMonitorCount = AvailableMonitorCount;
+
+            BuildMonitorSlots(SelectedMonitorCount);
+        }
+
+
+        private void BuildMonitorSlots(int count)
+        {
+            if (AvailableMonitorCount <= 0)
+            {
+                MonitorSlots = new ObservableCollection<MonitorSelectionSlot>();
+                return;
+            }
+
+            count = Math.Max(1, Math.Min(count, AvailableMonitorCount));
+
+            _isUpdatingMonitorSlots = true;
+            try
+            {
+                var prev = MonitorSlots.Select(s => s.SelectedScreen?.Index).Where(i => i.HasValue).Select(i => i.Value).ToList();
+                var used = new HashSet<int>();
+                var slots = new ObservableCollection<MonitorSelectionSlot>();
+
+                for (int i = 0; i < count; i++)
+                {
+                    var slot = new MonitorSelectionSlot(i + 1, OnMonitorSlotChanged);
+
+                    AccesClientWPF.Models.ScreenItem chosen = null;
+
+                    if (i < prev.Count)
+                    {
+                        var wanted = prev[i];
+                        chosen = _allScreens.FirstOrDefault(s => s.Index == wanted && !used.Contains(wanted));
+                    }
+
+                    if (chosen == null)
+                        chosen = _allScreens.FirstOrDefault(s => !used.Contains(s.Index));
+
+                    if (chosen != null)
+                        used.Add(chosen.Index);
+
+                    slot.SelectedScreen = chosen;
+                    slots.Add(slot);
+                }
+
+                MonitorSlots = slots;
+            }
+            finally
+            {
+                _isUpdatingMonitorSlots = false;
+            }
+
+            UpdateAvailableScreensForAllSlots();
+        }
+
+        private void OnMonitorSlotChanged(MonitorSelectionSlot changedSlot)
+        {
+            if (_isUpdatingMonitorSlots)
+                return;
+
+            _isUpdatingMonitorSlots = true;
+            try
+            {
+                if (changedSlot.SelectedScreen != null)
+                {
+                    var idx = changedSlot.SelectedScreen.Index;
+                    foreach (var s in MonitorSlots.Where(s => s != changedSlot && s.SelectedScreen?.Index == idx))
+                        s.SelectedScreen = null;
+                }
+
+                UpdateAvailableScreensForAllSlots();
+            }
+            finally
+            {
+                _isUpdatingMonitorSlots = false;
+            }
+        }
+
+        private void UpdateAvailableScreensForAllSlots()
+        {
+            _isUpdatingMonitorSlots = true;
+            try
+            {
+                var selected = MonitorSlots.Select(s => s.SelectedScreen?.Index).Where(i => i.HasValue).Select(i => i.Value).ToHashSet();
+
+                foreach (var slot in MonitorSlots)
+                {
+                    var keep = slot.SelectedScreen?.Index;
+                    var allowed = _allScreens.Where(s => !selected.Contains(s.Index) || (keep.HasValue && s.Index == keep.Value)).ToList();
+                    slot.AvailableScreens = new ObservableCollection<AccesClientWPF.Models.ScreenItem>(allowed);
+
+                    if (slot.SelectedScreen != null && !allowed.Any(a => a.Index == slot.SelectedScreen.Index))
+                        slot.SelectedScreen = null;
+                }
+            }
+            finally
+            {
+                _isUpdatingMonitorSlots = false;
+            }
+        }
+
+        private bool TryGetSelectedMonitorsForRdp(out string selectedMonitors)
+        {
+            selectedMonitors = null;
+
+            if (!IsMultiMonitor)
+                return true;
+
+            if (UseAllMonitors)
+                return true;
+
+            if (MonitorSlots.Count == 0)
+                return false;
+
+            if (MonitorSlots.Any(s => s.SelectedScreen == null))
+                return false;
+
+            var ids = MonitorSlots.Select(s => s.SelectedScreen.Index).ToList();
+            if (ids.Distinct().Count() != ids.Count)
+                return false;
+
+            selectedMonitors = OrderSelectedMonitorsByWindowsLayout(ids, _allScreens);
+            return true;
+        }
+
+        private static string OrderSelectedMonitorsByWindowsLayout(List<int> selectedIndexes, List<ScreenItem> allScreens)
+        {
+            // allScreens est déjà trié Windows (RefreshMonitors)
+            var set = selectedIndexes.ToHashSet();
+            var ordered = allScreens.Where(s => set.Contains(s.Index)).Select(s => s.Index.ToString());
+            return string.Join(",", ordered);
         }
 
         private void LoadClients()
@@ -183,7 +572,6 @@ namespace AccesClientWPF.ViewModels
             File.WriteAllText(_jsonFilePath, json);
         }
 
-        // Commandes du panneau de droite (mot de passe)
         public ICommand EditPasswordCommand => new RelayCommand(p =>
         {
             if (SelectedClient == null || p is not FileModel item) return;
@@ -195,22 +583,18 @@ namespace AccesClientWPF.ViewModels
             {
                 var updated = win.FileEntry;
 
-                // Type et client figés
                 updated.Type = "MotDePasse";
                 updated.Client = item.Client;
 
-                // Conserver le nom si laissé vide
                 if (string.IsNullOrWhiteSpace(updated.Name))
                     updated.Name = item.Name;
 
-                // Conserver l'utilisateur s'il n'a pas été saisi
                 if (string.IsNullOrWhiteSpace(updated.WindowsUsername))
                     updated.WindowsUsername = item.WindowsUsername;
 
-                // Conserver le mot de passe si non saisi, chiffrer si saisi en clair
                 if (string.IsNullOrWhiteSpace(updated.WindowsPassword))
                 {
-                    updated.WindowsPassword = item.WindowsPassword; // garde l'existant chifré
+                    updated.WindowsPassword = item.WindowsPassword;
                 }
                 else
                 {
@@ -219,7 +603,6 @@ namespace AccesClientWPF.ViewModels
                         updated.WindowsPassword = EncryptionHelper.Encrypt(updated.WindowsPassword);
                 }
 
-                // Remplacement par VALEUR dans la DB
                 var db = LoadDatabase();
                 var existing = db.Files.FirstOrDefault(f =>
                     f.Type == "MotDePasse" &&
@@ -241,15 +624,12 @@ namespace AccesClientWPF.ViewModels
             }
         });
 
-
-
         public ICommand DeletePasswordCommand => new RelayCommand(p =>
         {
             if (SelectedClient == null || p is not FileModel item) return;
 
             var db = LoadDatabase();
 
-            // Cherche l’élément correspondant par valeurs (évite le problème de référence)
             var toRemove = db.Files.FirstOrDefault(f =>
                 f.Type == "MotDePasse" &&
                 string.Equals(f.Client, item.Client, StringComparison.OrdinalIgnoreCase) &&
@@ -263,7 +643,6 @@ namespace AccesClientWPF.ViewModels
             }
             else
             {
-                // Cas limite: si pas trouvé par nom (doublons, etc.), on tente une correspondance plus large
                 toRemove = db.Files.FirstOrDefault(f =>
                     f.Type == "MotDePasse" &&
                     string.Equals(f.Client, item.Client, StringComparison.OrdinalIgnoreCase) &&
@@ -278,7 +657,6 @@ namespace AccesClientWPF.ViewModels
                 }
             }
         });
-
 
         public ICommand MovePasswordUpCommand => new RelayCommand(p =>
         {
@@ -307,14 +685,11 @@ namespace AccesClientWPF.ViewModels
             if (SelectedClient == null) return;
 
             var db = LoadDatabase();
-
-            // Garde tout SAUF les "MotDePasse" du client courant
             var others = db.Files.Where(f => !(f.Client == SelectedClient.Name && f.Type == "MotDePasse")).ToList();
 
             db.Files.Clear();
             foreach (var f in others) db.Files.Add(f);
 
-            // Réinjecte SEULEMENT les mots de passe du client courant dans le nouvel ordre
             foreach (var p in PasswordEntries)
             {
                 if (p.Client == SelectedClient.Name && p.Type == "MotDePasse")
@@ -335,15 +710,13 @@ namespace AccesClientWPF.ViewModels
             }
 
             var win = new AddEntryWindow(Clients, SelectedClient);
-            // Force le type "Mot de passe" et masque le choix dans la fenêtre
-            try { win.SetTypeMotDePasse(); } catch { /* ignore si pas dispo */ }
+            try { win.SetTypeMotDePasse(); } catch { }
 
             if (win.ShowDialog() == true && win.FileEntry != null)
             {
-                win.FileEntry.Type = "MotDePasse";      // sécurité
+                win.FileEntry.Type = "MotDePasse";
                 win.FileEntry.Client = SelectedClient.Name;
 
-                // S'assurer que le mot de passe est chiffré
                 if (!string.IsNullOrWhiteSpace(win.FileEntry.WindowsPassword))
                 {
                     var test = EncryptionHelper.Decrypt(win.FileEntry.WindowsPassword);
@@ -359,34 +732,229 @@ namespace AccesClientWPF.ViewModels
             }
         });
 
-
-
         public void LoadFilesForSelectedClient()
         {
             FilteredFiles.Clear();
+            RootFiles.Clear();
+            Level2Files.Clear();
 
-            if (SelectedClient != null)
+            if (SelectedClient == null)
             {
-                var database = LoadDatabase();
+                PasswordEntries = new ObservableCollection<FileModel>();
+                HasLevel2 = false;
+                SelectedRangementName = null;
+                OnPropertyChanged(nameof(FilteredFiles));
+                return;
+            }
 
-                // Centre : tout sauf MotDePasse
-                foreach (var file in database.Files.Where(f => f.Client == SelectedClient.Name && f.Type != "MotDePasse"))
+            var database = LoadDatabase();
+
+            var all = database.Files
+                .Where(f => f.Client == SelectedClient.Name)
+                .ToList();
+
+            PasswordEntries = new ObservableCollection<FileModel>(
+                all.Where(f => f.Type == "MotDePasse")
+            );
+
+            var center = all.Where(f => f.Type != "MotDePasse").ToList();
+
+            ReloadAvailableRangements();
+
+            HasLevel2 =
+                center.Any(f => f.Type == "Rangement" && string.IsNullOrWhiteSpace(f.RangementParent)) ||
+                center.Any(f => !string.IsNullOrWhiteSpace(f.RangementParent));
+
+            if (!HasLevel2)
+            {
+                foreach (var file in center)
                     FilteredFiles.Add(file);
 
-                // Droite : uniquement MotDePasse
-                PasswordEntries = new ObservableCollection<FileModel>(
-                    database.Files.Where(f => f.Client == SelectedClient.Name && f.Type == "MotDePasse")
-                );
+                OnPropertyChanged(nameof(FilteredFiles));
+                return;
+            }
+
+            foreach (var file in center.Where(f => string.IsNullOrWhiteSpace(f.RangementParent)))
+                RootFiles.Add(file);
+
+            var firstRangement = RootFiles.FirstOrDefault(x => x.Type == "Rangement")?.Name;
+
+            if (string.IsNullOrWhiteSpace(SelectedRangementName) ||
+                !RootFiles.Any(x => x.Type == "Rangement" && x.Name == SelectedRangementName))
+            {
+                SelectedRangementName = firstRangement;
             }
             else
             {
-                PasswordEntries = new ObservableCollection<FileModel>();
+                RefreshLevel2Files();
             }
 
-            OnPropertyChanged(nameof(FilteredFiles));
+            OnPropertyChanged(nameof(RootFiles));
+            OnPropertyChanged(nameof(Level2Files));
+            
         }
 
-        // --- Toast de copie ---
+        public void MoveToRacine(FileModel item)
+        {
+            if (SelectedClient == null || item == null) return;
+            if (string.IsNullOrWhiteSpace(item.RangementParent)) return; // déjà racine
+
+            var db = LoadDatabase();
+
+            var existing = db.Files.FirstOrDefault(f =>
+                string.Equals(f.Client, item.Client, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(f.Type, item.Type, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(f.Name, item.Name, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(f.RangementParent ?? "", item.RangementParent ?? "", StringComparison.OrdinalIgnoreCase));
+
+            if (existing == null) return;
+
+            existing.RangementParent = null;
+
+            SaveDatabase(db);
+            LoadFilesForSelectedClient();
+        }
+
+        public void MoveToRangement(FileModel item, string rangementName)
+        {
+            if (SelectedClient == null || item == null) return;
+            if (string.IsNullOrWhiteSpace(rangementName)) return;
+
+            // Interdit : un rangement ne va pas dans un rangement
+            if (string.Equals(item.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // Si déjà dans ce rangement : rien à faire
+            if (string.Equals(item.RangementParent ?? "", rangementName, StringComparison.OrdinalIgnoreCase))
+                return;
+
+            var db = LoadDatabase();
+
+            // ✅ crée le rangement "officiel" si absent
+            EnsureRangementExists(db, rangementName);
+
+            var existing = db.Files.FirstOrDefault(f =>
+                string.Equals(f.Client, item.Client, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(f.Type, item.Type, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(f.Name, item.Name, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(f.RangementParent ?? "", item.RangementParent ?? "", StringComparison.OrdinalIgnoreCase));
+
+            if (existing == null) return;
+
+            existing.RangementParent = rangementName;
+
+            SaveDatabase(db);
+            LoadFilesForSelectedClient();
+        }
+
+        private FileModel GetSelectedCenterItem()
+        {
+            // En split :
+            // - colonne gauche : SelectedRootItem
+            // - colonne droite : SelectedFile
+            // En mode classique : SelectedFile
+            return SelectedFile ?? SelectedRootItem;
+        }
+
+        private void MoveSelected(int delta)
+        {
+            if (SelectedClient == null) return;
+
+            var item = GetSelectedCenterItem();
+            if (item == null) return;
+
+            var db = LoadDatabase();
+
+            var center = db.Files
+                .Where(f => f.Client == SelectedClient.Name && f.Type != "MotDePasse")
+                .ToList();
+
+            bool inLevel2 = !string.IsNullOrWhiteSpace(item.RangementParent);
+
+            var scope = center
+                .Where(f => inLevel2
+                    ? string.Equals(f.RangementParent ?? "", item.RangementParent ?? "", StringComparison.OrdinalIgnoreCase)
+                    : string.IsNullOrWhiteSpace(f.RangementParent))
+                .ToList();
+
+            int idx = scope.FindIndex(f =>
+                string.Equals(f.Name, item.Name, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(f.Type, item.Type, StringComparison.OrdinalIgnoreCase)
+                && string.Equals(f.RangementParent ?? "", item.RangementParent ?? "", StringComparison.OrdinalIgnoreCase));
+
+            if (idx < 0) return;
+
+            int newIdx = idx + delta;
+            if (newIdx < 0 || newIdx >= scope.Count) return;
+
+            var moving = scope[idx];
+            scope.RemoveAt(idx);
+            scope.Insert(newIdx, moving);
+
+            // Rebuild db.Files en conservant tout le reste
+            var rebuilt = db.Files.ToList();
+
+            rebuilt.RemoveAll(f =>
+                string.Equals(f.Client, SelectedClient.Name, StringComparison.OrdinalIgnoreCase)
+                && f.Type != "MotDePasse"
+                && (inLevel2
+                    ? string.Equals(f.RangementParent ?? "", item.RangementParent ?? "", StringComparison.OrdinalIgnoreCase)
+                    : string.IsNullOrWhiteSpace(f.RangementParent)));
+
+            rebuilt.AddRange(scope);
+
+            db.Files = new ObservableCollection<FileModel>(rebuilt);
+            SaveDatabase(db);
+
+            LoadFilesForSelectedClient();
+
+            // reselection
+            if (HasLevel2)
+            {
+                if (inLevel2)
+                    SelectedFile = Level2Files.FirstOrDefault(f =>
+                        string.Equals(f.Name, item.Name, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(f.Type, item.Type, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(f.RangementParent ?? "", item.RangementParent ?? "", StringComparison.OrdinalIgnoreCase));
+                else
+                    SelectedRootItem = RootFiles.FirstOrDefault(f =>
+                        string.Equals(f.Name, item.Name, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(f.Type, item.Type, StringComparison.OrdinalIgnoreCase)
+                        && string.IsNullOrWhiteSpace(f.RangementParent));
+            }
+            else
+            {
+                SelectedFile = FilteredFiles.FirstOrDefault(f =>
+                    string.Equals(f.Name, item.Name, StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(f.Type, item.Type, StringComparison.OrdinalIgnoreCase));
+            }
+        }
+
+
+
+        private void RefreshLevel2Files()
+        {
+            Level2Files.Clear();
+
+            if (SelectedClient == null || string.IsNullOrWhiteSpace(SelectedRangementName))
+            {
+                OnPropertyChanged(nameof(Level2Files));
+                return;
+            }
+
+            var database = LoadDatabase();
+
+            foreach (var file in database.Files.Where(f =>
+                         f.Client == SelectedClient.Name &&
+                         f.Type != "MotDePasse" &&
+                         f.RangementParent == SelectedRangementName))
+            {
+                Level2Files.Add(file);
+            }
+
+            OnPropertyChanged(nameof(Level2Files));
+        }
+
         private bool _isCopyToastVisible;
         public bool IsCopyToastVisible
         {
@@ -403,98 +971,112 @@ namespace AccesClientWPF.ViewModels
 
         private System.Timers.Timer _copyToastTimer;
 
-        public void ShowCopyToast(string text)
+        public void ShowCopyToast(string text) => ShowToast(text, isError: false);
+
+        private void ShowToast(string text, bool isError)
         {
             CopyToastText = text;
+            CopyToastBackground = isError ? "#E74C3C" : "#323232"; // rouge danger / gris
             IsCopyToastVisible = true;
 
-            // (Re)lance un timer 1.5s pour masquer
             _copyToastTimer?.Stop();
             _copyToastTimer = new System.Timers.Timer(1500) { AutoReset = false };
             _copyToastTimer.Elapsed += (_, __) =>
             {
-                // Revenir au thread UI
                 Application.Current.Dispatcher.Invoke(() => IsCopyToastVisible = false);
             };
             _copyToastTimer.Start();
         }
 
-
-
         public void EditSelectedFile(FileModel file = null)
         {
-            FileModel selectedFile = file ?? SelectedFile;
-            if (selectedFile == null)
+            var target = file ?? SelectedFile ?? SelectedRootItem;
+            if (target == null)
             {
                 MessageBox.Show("Veuillez sélectionner un élément à modifier.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            var originalFile = new FileModel
+            // copie “clé” robuste
+            var original = new FileModel
             {
-                Name = selectedFile.Name,
-                Client = selectedFile.Client,
-                Type = selectedFile.Type,
-                FullPath = selectedFile.FullPath,
-                CustomIconPath = selectedFile.CustomIconPath,
-                WindowsUsername = selectedFile.WindowsUsername,
-                WindowsPassword = selectedFile.WindowsPassword
+                Name = target.Name,
+                Client = target.Client,
+                Type = target.Type,
+                FullPath = target.FullPath,
+                CustomIconPath = target.CustomIconPath,
+                WindowsUsername = target.WindowsUsername,
+                WindowsPassword = target.WindowsPassword,
+                RangementParent = target.RangementParent
             };
 
-            var current = SelectedClient;
-
-            var editWindow = new AddEntryWindow(Clients, SelectedClient, selectedFile);
+            var editWindow = new AddEntryWindow(Clients, SelectedClient, target);
             if (editWindow.ShowDialog() == true && editWindow.FileEntry != null)
             {
-                var database = LoadDatabase();
-                var itemToReplace = database.Files.FirstOrDefault(f => f.Name == originalFile.Name && f.Client == originalFile.Client);
+                var db = LoadDatabase();
 
-                if (itemToReplace != null)
+                // retrouver l’élément exact (inclut RangementParent)
+                var itemToReplace = db.Files.FirstOrDefault(f =>
+                    string.Equals(f.Client, original.Client, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Type, original.Type, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Name, original.Name, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.RangementParent ?? "", original.RangementParent ?? "", StringComparison.OrdinalIgnoreCase));
+
+                if (itemToReplace == null) return;
+
+                // check doublon NOM + TYPE + parent (sinon tu bloques trop)
+                bool duplicateExists = db.Files.Any(f =>
+                    f != itemToReplace &&
+                    string.Equals(f.Client, editWindow.FileEntry.Client, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Type, editWindow.FileEntry.Type, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Name, editWindow.FileEntry.Name, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.RangementParent ?? "", editWindow.FileEntry.RangementParent ?? "", StringComparison.OrdinalIgnoreCase));
+
+                if (duplicateExists)
                 {
-                    // éviter doublon nom
-                    bool duplicateExists = database.Files.Any(f =>
-                        f != itemToReplace &&
-                        f.Name == editWindow.FileEntry.Name &&
-                        f.Client == editWindow.FileEntry.Client);
-
-                    if (duplicateExists)
-                    {
-                        MessageBox.Show($"Un élément avec le nom '{editWindow.FileEntry.Name}' existe déjà pour ce client.",
-                                        "Nom en double", MessageBoxButton.OK, MessageBoxImage.Warning);
-                        return;
-                    }
-
-                    int index = database.Files.IndexOf(itemToReplace);
-                    database.Files[index] = editWindow.FileEntry;
-
-                    SaveDatabase(database);
-
-                    // recharge centre + droite
-                    SelectedClient = null;
-                    SelectedClient = Clients.FirstOrDefault(c => c.Name == current.Name);
+                    MessageBox.Show($"Un élément identique existe déjà (nom/type/rangement).",
+                                    "Doublon", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
                 }
+
+                int index = db.Files.IndexOf(itemToReplace);
+                db.Files[index] = editWindow.FileEntry;
+
+                SaveDatabase(db);
+                LoadFilesForSelectedClient();
             }
         }
 
         public void HandleFileDoubleClick(FileModel file)
         {
+            if (file == null) return;
+
             switch (file.Type)
             {
+                case "Rangement":
+                    SelectedRangementName = file.Name;
+                    break;
+
                 case "RDS":
                     ConnectToRemoteDesktop(file);
                     break;
+
                 case "AnyDesk":
                     ConnectToAnyDesk(file);
                     break;
+
                 case "VPN":
                     LaunchProgram(file.FullPath);
                     break;
+
                 case "Dossier":
                     OpenFolder(file.FullPath);
                     break;
+
                 case "Fichier":
                     OpenFile(file.FullPath);
                     break;
+
                 default:
                     MessageBox.Show($"Ouverture de {file.Type}: {file.Name}", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                     break;
@@ -549,6 +1131,13 @@ namespace AccesClientWPF.ViewModels
         {
             try
             {
+                if (!TryGetSelectedMonitorsForRdp(out var selectedMonitors))
+                {
+                    MessageBox.Show("Sélection multi-moniteur incomplète. Choisissez un écran pour chaque liste.", "Multi-moniteur",
+                        MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
                 var credentials = file.FullPath.Split(':');
                 if (credentials.Length < 3)
                 {
@@ -568,6 +1157,36 @@ namespace AccesClientWPF.ViewModels
                     return;
                 }
 
+                bool useMulti = IsMultiMonitor;
+                string selectedMonitorsForRdp = selectedMonitors;
+
+                if (useMulti)
+                {
+                    // ✅ Si "Tous les écrans" est coché => PAS DE TEST
+                    if (!UseAllMonitors)
+                    {
+                        var screensToUse = _allScreens;
+
+                        if (!string.IsNullOrWhiteSpace(selectedMonitorsForRdp))
+                        {
+                            var ids = selectedMonitorsForRdp
+                                .Split(',')
+                                .Select(x => int.TryParse(x, out var v) ? v : -1)
+                                .Where(v => v >= 0)
+                                .ToHashSet();
+
+                            screensToUse = _allScreens.Where(s => ids.Contains(s.Index)).ToList();
+                        }
+
+                        if (!Helpers.MonitorHelper.AreSelectedScreensContiguousInWindowsOrder(_allScreens, screensToUse, out var reason))
+                        {
+                            useMulti = false;
+                            selectedMonitorsForRdp = null;
+                            ShowToast(reason, isError: true);
+                        }
+                    }
+                }
+
                 string rdpFilePath = Path.Combine(Path.GetTempPath(), $"{file.Name.Replace(' ', '_')}_{Guid.NewGuid().ToString().Substring(0, 8)}.rdp");
 
                 using (StreamWriter sw = new StreamWriter(rdpFilePath))
@@ -579,7 +1198,9 @@ namespace AccesClientWPF.ViewModels
                     sw.WriteLine("desktopwidth:i:0");
                     sw.WriteLine("desktopheight:i:0");
                     sw.WriteLine("session bpp:i:32");
-                    sw.WriteLine($"use multimon:i:{(IsMultiMonitor ? "1" : "0")}");
+                    sw.WriteLine($"use multimon:i:{(useMulti ? "1" : "0")}");
+                    if (useMulti && !UseAllMonitors && !string.IsNullOrWhiteSpace(selectedMonitorsForRdp))
+                        sw.WriteLine($"selectedmonitors:s:{selectedMonitorsForRdp}");
                     sw.WriteLine("connection type:i:7");
                     sw.WriteLine("networkautodetect:i:1");
                     sw.WriteLine("bandwidthautodetect:i:1");
@@ -616,7 +1237,6 @@ namespace AccesClientWPF.ViewModels
                 }
                 catch
                 {
-                    // ignore
                 }
 
                 var startInfo = new ProcessStartInfo
@@ -724,7 +1344,6 @@ namespace AccesClientWPF.ViewModels
             }
         }
 
-        // Vérifier et demander le chemin d'AnyDesk si nécessaire
         private bool VerifyAndSetAnyDeskPath()
         {
             if (AppSettings.Instance.IsAnyDeskPathValid())
@@ -791,6 +1410,13 @@ namespace AccesClientWPF.ViewModels
             }
         }
 
+        private string _copyToastBackground = "#323232";
+        public string CopyToastBackground
+        {
+            get => _copyToastBackground;
+            set { _copyToastBackground = value; OnPropertyChanged(nameof(CopyToastBackground)); }
+        }
+
         public void AddFile()
         {
             if (SelectedClient == null)
@@ -839,38 +1465,26 @@ namespace AccesClientWPF.ViewModels
 
         public void MoveUp()
         {
-            var index = FilteredFiles.IndexOf(SelectedFile);
-            if (index > 0)
-            {
-                FilteredFiles.Move(index, index - 1);
-                SaveFiles();
-            }
+            MoveSelected(-1);
         }
 
         public void MoveDown()
         {
-            var index = FilteredFiles.IndexOf(SelectedFile);
-            if (index < FilteredFiles.Count - 1)
-            {
-                FilteredFiles.Move(index, index + 1);
-                SaveFiles();
-            }
+            MoveSelected(+1);
         }
+        
 
         private void SaveFiles()
         {
             var db = LoadDatabase();
 
-            // retire les fichiers du client courant
             db.Files = new ObservableCollection<FileModel>(
                 db.Files.Where(f => f.Client != SelectedClient?.Name)
             );
 
-            // réinjecte ceux du centre
             foreach (var file in FilteredFiles)
                 db.Files.Add(file);
 
-            // réinjecte aussi les mots de passe existants du client (on ne les perd pas)
             if (SelectedClient != null)
             {
                 foreach (var p in PasswordEntries)
@@ -1229,7 +1843,6 @@ namespace AccesClientWPF.ViewModels
             }
             catch
             {
-                // Accès refusé ? On ignore
             }
 
             foreach (var item in foundList)
@@ -1300,6 +1913,30 @@ namespace AccesClientWPF.ViewModels
             {
                 SelectedClient = Clients.FirstOrDefault(c => c.Name == previousClientName);
             }
+        }
+
+        private void EnsureRangementExists(Models.DatabaseModel db, string rangementName)
+        {
+            if (SelectedClient == null) return;
+            if (string.IsNullOrWhiteSpace(rangementName)) return;
+
+            bool exists = db.Files.Any(f =>
+                string.Equals(f.Client, SelectedClient.Name, StringComparison.OrdinalIgnoreCase) &&
+                string.Equals(f.Type, "Rangement", StringComparison.OrdinalIgnoreCase) &&
+                string.IsNullOrWhiteSpace(f.RangementParent) &&
+                string.Equals(f.Name, rangementName, StringComparison.OrdinalIgnoreCase));
+
+            if (exists) return;
+
+            // Création "officielle" à la racine
+            db.Files.Add(new FileModel
+            {
+                Client = SelectedClient.Name,
+                Type = "Rangement",
+                Name = rangementName,
+                FullPath = "",
+                RangementParent = null
+            });
         }
 
         private void ReloadDatabase()

@@ -1,14 +1,15 @@
 ﻿using System;
+using System.Collections.Generic;
 using System.Collections.ObjectModel;
 using System.ComponentModel;
 using System.Linq;
 using System.Windows;
 using System.Windows.Input;
+
 using AccesClientWPF.Commands;
 using AccesClientWPF.Helpers;
 using AccesClientWPF.Models;
 using AccesClientWPF.Views;
-using System.Collections.Generic;
 
 namespace AccesClientWPF.ViewModels
 {
@@ -18,6 +19,9 @@ namespace AccesClientWPF.ViewModels
         public ObservableCollection<FileModel> FilteredFiles { get; set; } = new();
         public ObservableCollection<FileModel> AllFiles { get; set; } = new();
 
+        // =========================
+        // Password (panneau droite)
+        // =========================
         private ObservableCollection<FileModel> _passwordEntries = new();
         public ObservableCollection<FileModel> PasswordEntries
         {
@@ -25,31 +29,40 @@ namespace AccesClientWPF.ViewModels
             private set { _passwordEntries = value; OnPropertyChanged(nameof(PasswordEntries)); }
         }
 
-        private ClientModel selectedClient;
+        private FileModel _selectedPassword;
+        public FileModel SelectedPassword
+        {
+            get => _selectedPassword;
+            set { _selectedPassword = value; OnPropertyChanged(nameof(SelectedPassword)); }
+        }
+
+        // =========================
+        // Sélections
+        // =========================
+        private ClientModel _selectedClient;
         public ClientModel SelectedClient
         {
-            get => selectedClient;
+            get => _selectedClient;
             set
             {
-                selectedClient = value;
+                _selectedClient = value;
                 OnPropertyChanged(nameof(SelectedClient));
                 LoadFilesForSelectedClient();
             }
         }
 
-        private FileModel selectedFile;
+        private FileModel _selectedFile;
         public FileModel SelectedFile
         {
-            get => selectedFile;
-            set { selectedFile = value; OnPropertyChanged(nameof(SelectedFile)); }
+            get => _selectedFile;
+            set { _selectedFile = value; OnPropertyChanged(nameof(SelectedFile)); }
         }
 
-        private FileModel selectedPassword;
-        public FileModel SelectedPassword
-        {
-            get => selectedPassword;
-            set { selectedPassword = value; OnPropertyChanged(nameof(SelectedPassword)); }
-        }
+        // =========================
+        // UI flags
+        // =========================
+        public string AppVersionText => Helpers.AppVersion.CurrentString;
+        public string WindowTitle => $"Accès Client {AppVersionText} / Partagé";
 
         private bool _isMultiMonitor;
         public bool IsMultiMonitor
@@ -64,6 +77,53 @@ namespace AccesClientWPF.ViewModels
             get => _showCredentials;
             set { if (_showCredentials != value) { _showCredentials = value; OnPropertyChanged(nameof(ShowCredentials)); } }
         }
+
+        // =========================
+        // Multi-niveaux (split)
+        // =========================
+        public ObservableCollection<FileModel> RootFiles { get; } = new();
+        public ObservableCollection<FileModel> Level2Files { get; } = new();
+
+        private FileModel _selectedRootItem;
+        public FileModel SelectedRootItem
+        {
+            get => _selectedRootItem;
+            set
+            {
+                _selectedRootItem = value;
+                OnPropertyChanged(nameof(SelectedRootItem));
+
+                // utile pour le context menu & actions existantes
+                SelectedFile = value;
+
+                if (_selectedRootItem?.Type == "Rangement")
+                    SelectedRangementName = _selectedRootItem.Name;
+            }
+        }
+
+        private string _selectedRangementName;
+        public string SelectedRangementName
+        {
+            get => _selectedRangementName;
+            set
+            {
+                _selectedRangementName = value;
+                OnPropertyChanged(nameof(SelectedRangementName));
+                RefreshLevel2Files();
+            }
+        }
+
+        private bool _hasLevel2;
+        public bool HasLevel2
+        {
+            get => _hasLevel2;
+            set { _hasLevel2 = value; OnPropertyChanged(nameof(HasLevel2)); }
+        }
+
+        // =========================
+        // Commands (si tu les utilises ailleurs)
+        // =========================
+        public ICommand AddFileCommand { get; }
 
         public ICommand MoveUpFileCommand { get; }
         public ICommand MoveDownFileCommand { get; }
@@ -89,16 +149,20 @@ namespace AccesClientWPF.ViewModels
             var toCopy = string.IsNullOrEmpty(dec) ? s : dec;
             ClipboardHelper.CopyPlainText(toCopy);
             if (!string.IsNullOrWhiteSpace(toCopy))
-                MessageBox.Show($"Mot de passe « {toCopy} » copié.", "Copie", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show($"Mot de passe copié.", "Copie", MessageBoxButton.OK, MessageBoxImage.Information);
         });
 
         public event PropertyChangedEventHandler PropertyChanged;
 
         public SharedDatabaseViewModel()
         {
-            MoveUpFileCommand = new RelayCommand(_ => MoveUp(), _ => SelectedFile != null && FilteredFiles.IndexOf(SelectedFile) > 0);
-            MoveDownFileCommand = new RelayCommand(_ => MoveDown(), _ => SelectedFile != null && FilteredFiles.IndexOf(SelectedFile) < FilteredFiles.Count - 1);
+            // Bouton "Ajouter un élément" (thème) + context menu "Ajouter"
+            AddFileCommand = new RelayCommand(_ => AddFile());
 
+            MoveUpFileCommand = new RelayCommand(_ => MoveCenter(-1), _ => CanMoveCenter(-1));
+            MoveDownFileCommand = new RelayCommand(_ => MoveCenter(+1), _ => CanMoveCenter(+1));
+
+            // Password panel actions
             AddPasswordFromRightCommand = new RelayCommand(_ => AddPassword());
             EditPasswordCommand = new RelayCommand(p => EditPassword((p as FileModel) ?? SelectedPassword));
             DeletePasswordCommand = new RelayCommand(p => DeletePassword((p as FileModel) ?? SelectedPassword));
@@ -106,8 +170,113 @@ namespace AccesClientWPF.ViewModels
             MovePasswordDownCommand = new RelayCommand(p => MovePasswordDown((p as FileModel) ?? SelectedPassword));
         }
 
-        public void LoadDatabase(AccesClientWPF.Models.DatabaseModel database)
+        private FileModel GetSelectedCenterItem()
+        {
+            return HasLevel2 ? (SelectedFile ?? SelectedRootItem) : SelectedFile;
+        }
 
+        private bool CanMoveCenter(int delta)
+        {
+            var item = GetSelectedCenterItem();
+            if (item == null) return false;
+
+            if (!HasLevel2)
+            {
+                int idx = FilteredFiles.IndexOf(item);
+                if (idx < 0) return false;
+                int nidx = idx + delta;
+                return nidx >= 0 && nidx < FilteredFiles.Count;
+            }
+
+            bool inLevel2 = !string.IsNullOrWhiteSpace(item.RangementParent);
+            var list = inLevel2 ? Level2Files : RootFiles;
+
+            int i = list.IndexOf(item);
+            if (i < 0) return false;
+            int ni = i + delta;
+            return ni >= 0 && ni < list.Count;
+        }
+
+        private void MoveCenter(int delta)
+        {
+            var item = GetSelectedCenterItem();
+            if (item == null) return;
+
+            if (!HasLevel2)
+            {
+                int idx = FilteredFiles.IndexOf(item);
+                int nidx = idx + delta;
+                if (idx < 0 || nidx < 0 || nidx >= FilteredFiles.Count) return;
+
+                FilteredFiles.Move(idx, nidx);
+
+                var allScope = AllFiles
+                    .Where(f => f.Client == SelectedClient?.Name && f.Type != "MotDePasse")
+                    .ToList();
+
+                int aidx = allScope.IndexOf(item);
+                int naidx = aidx + delta;
+                if (aidx >= 0 && naidx >= 0 && naidx < allScope.Count)
+                {
+                    allScope.RemoveAt(aidx);
+                    allScope.Insert(naidx, item);
+
+                    var rebuilt = AllFiles.ToList();
+                    rebuilt.RemoveAll(f => f.Client == SelectedClient?.Name && f.Type != "MotDePasse");
+                    rebuilt.AddRange(allScope);
+
+                    AllFiles = new ObservableCollection<FileModel>(rebuilt);
+                    OnPropertyChanged(nameof(AllFiles));
+                }
+
+                OnPropertyChanged(nameof(FilteredFiles));
+                return;
+            }
+
+            bool inLevel2 = !string.IsNullOrWhiteSpace(item.RangementParent);
+            var list = inLevel2 ? Level2Files : RootFiles;
+
+            int i = list.IndexOf(item);
+            int ni = i + delta;
+            if (i < 0 || ni < 0 || ni >= list.Count) return;
+
+            list.Move(i, ni);
+
+            string parent = item.RangementParent ?? "";
+            var allScope2 = AllFiles
+                .Where(f =>
+                    f.Client == SelectedClient?.Name &&
+                    f.Type != "MotDePasse" &&
+                    string.Equals((f.RangementParent ?? ""), parent, StringComparison.OrdinalIgnoreCase))
+                .ToList();
+
+            int a = allScope2.IndexOf(item);
+            int na = a + delta;
+            if (a >= 0 && na >= 0 && na < allScope2.Count)
+            {
+                allScope2.RemoveAt(a);
+                allScope2.Insert(na, item);
+
+                var rebuilt = AllFiles.ToList();
+                rebuilt.RemoveAll(f =>
+                    f.Client == SelectedClient?.Name &&
+                    f.Type != "MotDePasse" &&
+                    string.Equals((f.RangementParent ?? ""), parent, StringComparison.OrdinalIgnoreCase));
+
+                rebuilt.AddRange(allScope2);
+
+                AllFiles = new ObservableCollection<FileModel>(rebuilt);
+                OnPropertyChanged(nameof(AllFiles));
+            }
+
+            OnPropertyChanged(nameof(RootFiles));
+            OnPropertyChanged(nameof(Level2Files));
+        }
+
+        // =========================
+        // Import / Export DB
+        // =========================
+        public void LoadDatabase(AccesClientWPF.Models.DatabaseModel database)
         {
             LoadClients(database.Clients);
 
@@ -119,6 +288,15 @@ namespace AccesClientWPF.ViewModels
             LoadFilesForSelectedClient();
         }
 
+        public AccesClientWPF.Models.DatabaseModel ExportDatabase()
+        {
+            return new AccesClientWPF.Models.DatabaseModel
+            {
+                Clients = new ObservableCollection<ClientModel>(Clients),
+                Files = new ObservableCollection<FileModel>(AllFiles)
+            };
+        }
+
         public void LoadClients(ObservableCollection<ClientModel> clients)
         {
             Clients.Clear();
@@ -128,26 +306,114 @@ namespace AccesClientWPF.ViewModels
             OnPropertyChanged(nameof(Clients));
         }
 
+        // =========================
+        // Filtrage + Split
+        // =========================
         private void LoadFilesForSelectedClient()
         {
             FilteredFiles.Clear();
+            RootFiles.Clear();
+            Level2Files.Clear();
 
-            if (SelectedClient != null)
+            if (SelectedClient == null)
             {
-                foreach (var f in AllFiles.Where(f => f.Client == SelectedClient.Name && f.Type != "MotDePasse"))
-                    FilteredFiles.Add(f);
+                PasswordEntries = new ObservableCollection<FileModel>();
+                HasLevel2 = false;
+                SelectedRangementName = null;
+                OnPropertyChanged(nameof(FilteredFiles));
+                return;
+            }
 
-                PasswordEntries = new ObservableCollection<FileModel>(
-                    AllFiles.Where(f => f.Client == SelectedClient.Name && f.Type == "MotDePasse"));
+            var all = AllFiles
+                .Where(f => f.Client == SelectedClient.Name)
+                .ToList();
+
+            PasswordEntries = new ObservableCollection<FileModel>(
+                all.Where(f => f.Type == "MotDePasse")
+            );
+
+            var center = all.Where(f => f.Type != "MotDePasse").ToList();
+
+            HasLevel2 =
+                center.Any(f => f.Type == "Rangement" && string.IsNullOrWhiteSpace(f.RangementParent)) ||
+                center.Any(f => !string.IsNullOrWhiteSpace(f.RangementParent));
+
+            if (!HasLevel2)
+            {
+                foreach (var file in center)
+                    FilteredFiles.Add(file);
+
+                OnPropertyChanged(nameof(FilteredFiles));
+                return;
+            }
+
+            // Racine : rangements (Type=Rangement) + éléments sans parent
+            foreach (var file in center.Where(f => string.IsNullOrWhiteSpace(f.RangementParent)))
+                RootFiles.Add(file);
+
+            // sélection par défaut : premier rangement
+            var firstRangement = RootFiles.FirstOrDefault(x => x.Type == "Rangement")?.Name;
+
+            if (string.IsNullOrWhiteSpace(SelectedRangementName) ||
+                !RootFiles.Any(x => x.Type == "Rangement" && x.Name == SelectedRangementName))
+            {
+                SelectedRangementName = firstRangement;
             }
             else
             {
-                PasswordEntries = new ObservableCollection<FileModel>();
+                RefreshLevel2Files();
             }
 
-            OnPropertyChanged(nameof(FilteredFiles));
+            OnPropertyChanged(nameof(RootFiles));
+            OnPropertyChanged(nameof(Level2Files));
         }
 
+        private void RefreshLevel2Files()
+        {
+            Level2Files.Clear();
+
+            if (SelectedClient == null || string.IsNullOrWhiteSpace(SelectedRangementName))
+            {
+                OnPropertyChanged(nameof(Level2Files));
+                return;
+            }
+
+            foreach (var file in AllFiles.Where(f =>
+                         f.Client == SelectedClient.Name &&
+                         f.Type != "MotDePasse" &&
+                         string.Equals(f.RangementParent, SelectedRangementName, StringComparison.OrdinalIgnoreCase)))
+            {
+                Level2Files.Add(file);
+            }
+
+            OnPropertyChanged(nameof(Level2Files));
+        }
+
+        // =========================
+        // Déplacements multi-niveaux
+        // =========================
+        public void MoveToRacine(FileModel item)
+        {
+            if (SelectedClient == null || item == null) return;
+            if (string.IsNullOrWhiteSpace(item.RangementParent)) return;
+
+            item.RangementParent = null;
+            LoadFilesForSelectedClient();
+        }
+
+        public void MoveToRangement(FileModel item, string rangement)
+        {
+            if (SelectedClient == null || item == null) return;
+            if (string.IsNullOrWhiteSpace(rangement)) return;
+            if (string.Equals(item.Type, "Rangement", StringComparison.OrdinalIgnoreCase)) return;
+
+            item.RangementParent = rangement;
+            LoadFilesForSelectedClient();
+        }
+
+        // =========================
+        // Clients (utilisé par SharedClientManagementWindow)
+        // =========================
         public void AddClient(string clientName)
         {
             if (string.IsNullOrWhiteSpace(clientName)) return;
@@ -201,37 +467,58 @@ namespace AccesClientWPF.ViewModels
             }
         }
 
+        // =========================
+        // DB operations
+        // =========================
         public void CreateNewDatabase()
         {
             Clients.Clear();
             AllFiles.Clear();
             FilteredFiles.Clear();
+            RootFiles.Clear();
+            Level2Files.Clear();
+
             PasswordEntries = new ObservableCollection<FileModel>();
+            SelectedClient = null;
+            SelectedFile = null;
+            SelectedRangementName = null;
 
             OnPropertyChanged(nameof(Clients));
             OnPropertyChanged(nameof(AllFiles));
             OnPropertyChanged(nameof(FilteredFiles));
+            OnPropertyChanged(nameof(RootFiles));
+            OnPropertyChanged(nameof(Level2Files));
         }
 
+        // =========================
+        // Files CRUD (AddEntryWindow)
+        // =========================
         public void AddFile()
         {
             if (SelectedClient == null)
             {
-                MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un élément.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un élément.",
+                    "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             var current = SelectedClient;
+
+            // AddEntryWindow existe déjà dans ton projet (utilisé dans ta base partagée)
             var add = new AddEntryWindow(Clients, SelectedClient);
             if (add.ShowDialog() == true && add.FileEntry != null)
             {
                 AllFiles.Add(add.FileEntry);
+
+                // refresh UI (retrigger SelectedClient setter)
                 SelectedClient = null;
                 SelectedClient = Clients.FirstOrDefault(c => c.Name == current.Name);
             }
         }
 
-        public void EditSelectedFile(FileModel file = null)
+        public void EditSelectedFile() => EditSelectedFile(null);
+
+        public void EditSelectedFile(FileModel file)
         {
             var original = file ?? SelectedFile;
             if (original == null)
@@ -241,7 +528,6 @@ namespace AccesClientWPF.ViewModels
                 return;
             }
 
-            // On mémorise l’index de l’élément dans AllFiles pour garantir le remplacement
             int originalIndex = AllFiles.IndexOf(original);
             if (originalIndex < 0)
             {
@@ -250,7 +536,6 @@ namespace AccesClientWPF.ViewModels
                 return;
             }
 
-            // Copie de travail (pour éviter de bidouiller l'original tant que l'utilisateur n'a pas validé)
             var workingCopy = new FileModel
             {
                 Name = original.Name,
@@ -259,16 +544,20 @@ namespace AccesClientWPF.ViewModels
                 FullPath = original.FullPath,
                 CustomIconPath = original.CustomIconPath,
                 WindowsUsername = original.WindowsUsername,
-                WindowsPassword = original.WindowsPassword
+                WindowsPassword = original.WindowsPassword,
+
+                Username = original.Username,
+                Password = original.Password,
+
+                // ✅ important multi-niveaux
+                RangementParent = original.RangementParent
             };
 
             var currentClient = SelectedClient;
 
-            // Ouverture en mode édition sur la copie
             var edit = new AddEntryWindow(Clients, SelectedClient, workingCopy);
             if (edit.ShowDialog() == true && edit.FileEntry != null)
             {
-                // Optionnel : empêcher les doublons (même Client + même Nom sur un autre item)
                 bool duplicateExists = AllFiles
                     .Where((f, idx) => idx != originalIndex)
                     .Any(f => f.Client == edit.FileEntry.Client && f.Name == edit.FileEntry.Name);
@@ -281,186 +570,143 @@ namespace AccesClientWPF.ViewModels
                     return;
                 }
 
-                // Remplacer à la même position
                 AllFiles[originalIndex] = edit.FileEntry;
 
-                // Rafraîchir la vue filtrée
                 SelectedClient = null;
                 SelectedClient = Clients.FirstOrDefault(c => c.Name == currentClient?.Name);
-                // Reselect l’élément modifié si encore visible
-                SelectedFile = FilteredFiles.FirstOrDefault(f =>
-                    f.Name == edit.FileEntry.Name && f.Client == edit.FileEntry.Client && f.Type == edit.FileEntry.Type);
+
+                SelectedFile = null;
             }
         }
-
 
         public void DeleteSelectedFile()
         {
             if (SelectedFile == null) return;
 
-            var toRemove = AllFiles.FirstOrDefault(f => f == SelectedFile) ??
-                           AllFiles.FirstOrDefault(f => f.Client == SelectedFile.Client && f.Name == SelectedFile.Name && f.Type == SelectedFile.Type);
-            if (toRemove != null)
-            {
-                AllFiles.Remove(toRemove);
-                FilteredFiles.Remove(SelectedFile);
-            }
+            AllFiles.Remove(SelectedFile);
+            SelectedFile = null;
+
+            LoadFilesForSelectedClient();
         }
 
-        public void MoveUp()
+        // =========================
+        // Up/Down for Files (mode "single")
+        // =========================
+        private void MoveUp()
         {
-            var index = FilteredFiles.IndexOf(SelectedFile);
-            if (index > 0)
-            {
-                FilteredFiles.Move(index, index - 1);
-                UpdateGlobalOrder();
-            }
+            if (SelectedFile == null) return;
+            int index = FilteredFiles.IndexOf(SelectedFile);
+            if (index <= 0) return;
+
+            // Move in FilteredFiles (UI)
+            FilteredFiles.Move(index, index - 1);
+
+            // Also try to keep ordering in AllFiles for persistence
+            int allIndex = AllFiles.IndexOf(SelectedFile);
+            if (allIndex > 0) AllFiles.Move(allIndex, allIndex - 1);
+
+            OnPropertyChanged(nameof(FilteredFiles));
+            OnPropertyChanged(nameof(AllFiles));
         }
 
-        public void MoveDown()
+        private void MoveDown()
         {
-            var index = FilteredFiles.IndexOf(SelectedFile);
-            if (index < FilteredFiles.Count - 1)
-            {
-                FilteredFiles.Move(index, index + 1);
-                UpdateGlobalOrder();
-            }
+            if (SelectedFile == null) return;
+            int index = FilteredFiles.IndexOf(SelectedFile);
+            if (index < 0 || index >= FilteredFiles.Count - 1) return;
+
+            FilteredFiles.Move(index, index + 1);
+
+            int allIndex = AllFiles.IndexOf(SelectedFile);
+            if (allIndex >= 0 && allIndex < AllFiles.Count - 1) AllFiles.Move(allIndex, allIndex + 1);
+
+            OnPropertyChanged(nameof(FilteredFiles));
+            OnPropertyChanged(nameof(AllFiles));
         }
 
-        private void UpdateGlobalOrder()
-        {
-            if (SelectedClient == null) return;
-
-            var others = AllFiles.Where(f => !(f.Client == SelectedClient.Name && f.Type != "MotDePasse")).ToList();
-            AllFiles.Clear();
-            foreach (var o in others) AllFiles.Add(o);
-            foreach (var f in FilteredFiles) AllFiles.Add(f);
-            foreach (var p in PasswordEntries) AllFiles.Add(p);
-        }
-
+        // =========================
+        // Password actions (panneau droite)
+        // =========================
         private void AddPassword()
         {
             if (SelectedClient == null)
             {
-                MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un mot de passe.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Sélectionne un client d’abord.", "Information",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
             var current = SelectedClient;
-            var win = new AddEntryWindow(Clients, SelectedClient);
-            win.SetTypeMotDePasse();
-            if (win.ShowDialog() == true && win.FileEntry != null)
+            var add = new AddEntryWindow(Clients, SelectedClient); // l’utilisateur choisit Type=MotDePasse
+            if (add.ShowDialog() == true && add.FileEntry != null)
             {
-                win.FileEntry.Type = "MotDePasse";
-                AllFiles.Add(win.FileEntry);
-
+                AllFiles.Add(add.FileEntry);
                 SelectedClient = null;
                 SelectedClient = Clients.FirstOrDefault(c => c.Name == current.Name);
             }
         }
 
-        private void EditPassword(FileModel item)
+        private void EditPassword(FileModel pwd)
         {
-            if (item == null) return;
-
-            // Toujours retrouver l'instance Client depuis la liste
-            var currentClient = Clients.FirstOrDefault(c => c.Name == item.Client) ?? SelectedClient;
-            if (currentClient == null)
+            if (pwd == null)
             {
-                MessageBox.Show("Aucun client sélectionné pour cette entrée.", "Information",
+                MessageBox.Show("Sélectionne un mot de passe.", "Information",
                     MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            var tempFile = new FileModel
-            {
-                Name = item.Name,
-                Client = item.Client,
-                Type = "MotDePasse",
-                WindowsUsername = item.WindowsUsername,
-                WindowsPassword = item.WindowsPassword
-            };
-
-            var win = new AddEntryWindow(Clients, currentClient, tempFile);
-            win.SetTypeMotDePasse();
-
-            if (win.ShowDialog() == true && win.FileEntry != null)
-            {
-                win.FileEntry.Type = "MotDePasse";
-
-                var existing = AllFiles.FirstOrDefault(f => f == item) ??
-                               AllFiles.FirstOrDefault(f => f.Client == item.Client &&
-                                                            f.Name == item.Name &&
-                                                            f.Type == "MotDePasse");
-
-                if (existing != null)
-                {
-                    int index = AllFiles.IndexOf(existing);
-                    AllFiles[index] = win.FileEntry;
-                }
-                else
-                {
-                    AllFiles.Add(win.FileEntry);
-                }
-
-                // Refresh pour reconstituer PasswordEntries / FilteredFiles proprement
-                var restore = Clients.FirstOrDefault(c => c.Name == currentClient.Name);
-                SelectedClient = null;
-                SelectedClient = restore;
-            }
+            EditSelectedFile(pwd);
         }
 
-
-        private void DeletePassword(FileModel item)
+        private void DeletePassword(FileModel pwd)
         {
-            if (item == null) return;
-
-            var ask = MessageBox.Show($"Supprimer le mot de passe '{item.Name}' ?", "Confirmation", MessageBoxButton.YesNo, MessageBoxImage.Question);
-            if (ask != MessageBoxResult.Yes) return;
-
-            var toRemove = AllFiles.FirstOrDefault(f => f == item) ??
-                           AllFiles.FirstOrDefault(f => f.Client == item.Client && f.Name == item.Name && f.Type == "MotDePasse");
-            if (toRemove != null)
+            if (pwd == null)
             {
-                AllFiles.Remove(toRemove);
-                PasswordEntries.Remove(item);
+                MessageBox.Show("Sélectionne un mot de passe.", "Information",
+                    MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
             }
+
+            if (AllFiles.Contains(pwd))
+                AllFiles.Remove(pwd);
+
+            LoadFilesForSelectedClient();
         }
 
-        private void MovePasswordUp(FileModel item)
+        private void MovePasswordUp(FileModel pwd)
         {
-            if (item == null) return;
-            int index = PasswordEntries.IndexOf(item);
-            if (index > 0)
-            {
-                PasswordEntries.Move(index, index - 1);
-                SelectedPassword = item;
-                SavePasswordsOrder();
-            }
+            if (pwd == null) return;
+            int index = PasswordEntries.IndexOf(pwd);
+            if (index <= 0) return;
+
+            PasswordEntries.Move(index, index - 1);
+
+            int allIndex = AllFiles.IndexOf(pwd);
+            if (allIndex > 0) AllFiles.Move(allIndex, allIndex - 1);
+
+            OnPropertyChanged(nameof(PasswordEntries));
+            OnPropertyChanged(nameof(AllFiles));
         }
 
-        private void MovePasswordDown(FileModel item)
+        private void MovePasswordDown(FileModel pwd)
         {
-            if (item == null) return;
-            int index = PasswordEntries.IndexOf(item);
-            if (index < PasswordEntries.Count - 1)
-            {
-                PasswordEntries.Move(index, index + 1);
-                SelectedPassword = item;
-                SavePasswordsOrder();
-            }
+            if (pwd == null) return;
+            int index = PasswordEntries.IndexOf(pwd);
+            if (index < 0 || index >= PasswordEntries.Count - 1) return;
+
+            PasswordEntries.Move(index, index + 1);
+
+            int allIndex = AllFiles.IndexOf(pwd);
+            if (allIndex >= 0 && allIndex < AllFiles.Count - 1) AllFiles.Move(allIndex, allIndex + 1);
+
+            OnPropertyChanged(nameof(PasswordEntries));
+            OnPropertyChanged(nameof(AllFiles));
         }
 
-        private void SavePasswordsOrder()
-        {
-            if (SelectedClient == null) return;
-
-            var others = AllFiles.Where(f => !(f.Client == SelectedClient.Name && f.Type == "MotDePasse")).ToList();
-            AllFiles.Clear();
-            foreach (var o in others) AllFiles.Add(o);
-            foreach (var p in PasswordEntries) AllFiles.Add(p);
-        }
-
-        protected void OnPropertyChanged(string name) => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(name));
+        // =========================
+        // INotifyPropertyChanged
+        // =========================
+        protected virtual void OnPropertyChanged(string propertyName)
+            => PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
     }
 }
