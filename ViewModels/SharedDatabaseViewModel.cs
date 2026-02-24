@@ -528,6 +528,26 @@ namespace AccesClientWPF.ViewModels
                 return;
             }
 
+            // ✅ RÈGLE : si le rangement contient des éléments => pas de modification (renommage interdit)
+            if (string.Equals((original.Type ?? "").Trim(), "Rangement", StringComparison.OrdinalIgnoreCase))
+            {
+                bool hasChildren = AllFiles.Any(f =>
+                    string.Equals(f.Client, original.Client, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(f.Type, "MotDePasse", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.RangementParent ?? "", original.Name ?? "", StringComparison.OrdinalIgnoreCase));
+
+                if (hasChildren)
+                {
+                    MessageBox.Show(
+                        "Modification interdite : ce rangement contient des éléments.\n" +
+                        "Déplace d'abord les éléments vers la racine ou un autre rangement, puis renomme.",
+                        "Modification interdite",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
             int originalIndex = AllFiles.IndexOf(original);
             if (originalIndex < 0)
             {
@@ -545,11 +565,8 @@ namespace AccesClientWPF.ViewModels
                 CustomIconPath = original.CustomIconPath,
                 WindowsUsername = original.WindowsUsername,
                 WindowsPassword = original.WindowsPassword,
-
                 Username = original.Username,
                 Password = original.Password,
-
-                // ✅ important multi-niveaux
                 RangementParent = original.RangementParent
             };
 

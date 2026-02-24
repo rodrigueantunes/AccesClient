@@ -203,9 +203,29 @@ namespace AccesClientWPF.Views
 
             var selectedFile = _selectedNode.File;
 
+            // ✅ RÈGLE : si le rangement contient des éléments => pas de modification (renommage interdit)
+            if (string.Equals(selectedFile.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
+            {
+                var source = GetSourceFilesSnapshot();
+                bool hasChildren = source.Any(f =>
+                    string.Equals(f.Client, _client.Name, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(f.Type, "MotDePasse", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(f.RangementParent ?? "", selectedFile.Name ?? "", StringComparison.OrdinalIgnoreCase));
+
+                if (hasChildren)
+                {
+                    MessageBox.Show(
+                        "Modification interdite : ce rangement contient des éléments.\n" +
+                        "Déplace d'abord les éléments vers la racine ou un autre rangement, puis renomme.",
+                        "Modification interdite",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
             var editFile = PrepareEditingFile(selectedFile);
 
-            // ✅ IMPORTANT : injection si Share
             var edit = new AddEntryWindow(new ObservableCollection<ClientModel> { _client }, _client, editFile, injectedFiles: _useInjectedFiles ? _injectedFiles : null);
 
             if (edit.ShowDialog() == true && edit.FileEntry != null)
@@ -228,7 +248,6 @@ namespace AccesClientWPF.Views
                 }
             }
         }
-
         private void DeleteElement_Click(object sender, RoutedEventArgs e)
         {
             if (_selectedNode?.File == null)

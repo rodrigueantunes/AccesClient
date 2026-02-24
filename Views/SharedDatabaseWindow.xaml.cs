@@ -14,6 +14,8 @@ using Newtonsoft.Json;
 using HelpersDatabaseModel = AccesClientWPF.Helpers.DatabaseModel;
 using ModelsDatabaseModel = AccesClientWPF.Models.DatabaseModel;
 using System.Diagnostics;
+using System.Reflection;
+using System.Windows.Controls.Primitives;
 
 namespace AccesClientWPF.Views
 {
@@ -86,6 +88,14 @@ namespace AccesClientWPF.Views
             return null;
         }
 
+        private static string GetAppVersion()
+        {
+            var v = Assembly.GetExecutingAssembly().GetName().Version;
+            if (v == null) return "?.?.?";
+            // Exemple : 1.5.2 (sans le 4e numéro)
+            return $"{v.Major}.{v.Minor}.{v.Build}";
+        }
+
         private void OpenSharedDatabase_Click(object sender, RoutedEventArgs e)
         {
             var openFileDialog = new OpenFileDialog
@@ -119,8 +129,9 @@ namespace AccesClientWPF.Views
 
                     _currentFilePath = selectedFilePath;
                     _originalFileName = Path.GetFileNameWithoutExtension(_currentFilePath);
-
-                    this.Title = $"Accès Client 1.4.3 / Partagé ({_originalFileName})";
+                    
+                    var version = GetAppVersion();
+                    this.Title = $"Accès Client {version} / Partagé ({_originalFileName})";
 
                     var jsonData = File.ReadAllText(_currentFilePath);
                     var importedDatabase = JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(jsonData);
@@ -181,7 +192,8 @@ namespace AccesClientWPF.Views
             // Demander confirmation avant de réinitialiser
             if (_saveButton != null && _saveButton.IsEnabled)
             {
-                var result = MessageBox.Show("Voulez-vous enregistrer la base actuelle avant d'en créer une nouvelle ?",
+                var result = MessageBox.Show(
+                    "Voulez-vous enregistrer la base actuelle avant d'en créer une nouvelle ?",
                     "Confirmation", MessageBoxButton.YesNoCancel, MessageBoxImage.Question);
 
                 if (result == MessageBoxResult.Cancel)
@@ -194,70 +206,82 @@ namespace AccesClientWPF.Views
             // Réinitialiser
             _viewModel.CreateNewDatabase();
             _currentFilePath = null;
-            _originalFileName = null;
-            this.Title = "Accès Client 1.3.0 / Partagé (Nouveau)";
+            _originalFileName = "Nouveau";
+
+            var version = GetAppVersion();
+            this.Title = $"Accès Client {version} / Partagé (Nouveau)";
 
             // Activer les boutons
             if (_saveButton != null) _saveButton.IsEnabled = true;
             if (_cancelButton != null) _cancelButton.IsEnabled = true;
         }
 
-        // Corrigeons la fonction d'importation vers database.json
         private void ImportToMainDatabase_Click(object sender, RoutedEventArgs e)
         {
-            // Vérifier d'abord si une base est chargée
-            if (string.IsNullOrEmpty(_currentFilePath) && _viewModel.Clients.Count == 0)
-            {
-                MessageBox.Show("Veuillez d'abord ouvrir ou créer une base de données.",
-                    "Information", MessageBoxButton.OK, MessageBoxImage.Information);
-                return;
-            }
-
             try
             {
-                // Créer l'objet de base de données à partir du viewModel actuel
-                var importedDatabase = new Models.DatabaseModel
+                if (_viewModel == null)
+                {
+                    MessageBox.Show("Aucune base partagée chargée.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                    return;
+                }
+
+                // ✅ Importer la base COURANTE visible (pas un fichier choisi)
+                var importedDatabase = new AccesClientWPF.Models.DatabaseModel
                 {
                     Clients = _viewModel.Clients,
                     Files = new ObservableCollection<FileModel>(_viewModel.AllFiles)
                 };
 
-                // Charger la base principale
-                string mainDbPath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "database.json");
-                Models.DatabaseModel currentDatabase;
-
-                if (File.Exists(mainDbPath))
+                if (importedDatabase.Clients == null || importedDatabase.Files == null)
                 {
-                    string jsonData = File.ReadAllText(mainDbPath);
-                    currentDatabase = JsonConvert.DeserializeObject<Models.DatabaseModel>(jsonData)
-                        ?? new Models.DatabaseModel();
+                    MessageBox.Show("Base partagée invalide (données manquantes).", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                // Confirm
+                var result = MessageBox.Show(
+                    "Importer la base partagée courante vers la base principale ?\n" +
+                    "Les éléments existants seront mis à jour (upsert).",
+                    "Confirmation",
+                    MessageBoxButton.YesNo,
+                    MessageBoxImage.Question);
+
+                if (result != MessageBoxResult.Yes)
+                    return;
+
+                var mainPath = System.IO.Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "database.json");
+
+                AccesClientWPF.Models.DatabaseModel currentDatabase;
+                if (File.Exists(mainPath))
+                {
+                    var currentJson = File.ReadAllText(mainPath);
+                    currentDatabase = Newtonsoft.Json.JsonConvert.DeserializeObject<AccesClientWPF.Models.DatabaseModel>(currentJson)
+                                      ?? new AccesClientWPF.Models.DatabaseModel();
                 }
                 else
                 {
-                    currentDatabase = new Models.DatabaseModel
-                    {
-                        Clients = new ObservableCollection<ClientModel>(),
-                        Files = new ObservableCollection<FileModel>()
-                    };
+                    currentDatabase = new AccesClientWPF.Models.DatabaseModel();
                 }
 
-                // Fusionner les clients
+                // 1) Upsert Clients
                 foreach (var importedClient in importedDatabase.Clients)
                 {
-                    var existingClient = currentDatabase.Clients
-                        .FirstOrDefault(c => c.Name == importedClient.Name);
+                    var existingClient = currentDatabase.Clients.FirstOrDefault(c =>
+                        string.Equals(c.Name, importedClient.Name, StringComparison.OrdinalIgnoreCase));
 
                     if (existingClient == null)
-                    {
                         currentDatabase.Clients.Add(importedClient);
-                    }
+                    else
+                        existingClient.Name = importedClient.Name;
                 }
 
-                // Fusionner les fichiers
+                // 2) Upsert Files (inclut Rangements + déplacements)
                 foreach (var importedFile in importedDatabase.Files)
                 {
-                    var existingFile = currentDatabase.Files
-                        .FirstOrDefault(f => f.Name == importedFile.Name && f.Client == importedFile.Client);
+                    var existingFile = currentDatabase.Files.FirstOrDefault(f =>
+                        string.Equals(f.Name, importedFile.Name, StringComparison.OrdinalIgnoreCase)
+                        && string.Equals(f.Client, importedFile.Client, StringComparison.OrdinalIgnoreCase));
 
                     if (existingFile == null)
                     {
@@ -265,26 +289,34 @@ namespace AccesClientWPF.Views
                     }
                     else
                     {
-                        // Mise à jour de toutes les propriétés
                         existingFile.Type = importedFile.Type;
                         existingFile.FullPath = importedFile.FullPath;
                         existingFile.CustomIconPath = importedFile.CustomIconPath;
+
                         existingFile.WindowsUsername = importedFile.WindowsUsername;
                         existingFile.WindowsPassword = importedFile.WindowsPassword;
+
+                        // ✅ synchro rangement / retour racine
+                        existingFile.RangementParent = importedFile.RangementParent;
+
+                        existingFile.Username = importedFile.Username;
+                        existingFile.Password = importedFile.Password;
                     }
                 }
 
-                // Sauvegarder
-                File.WriteAllText(mainDbPath, JsonConvert.SerializeObject(currentDatabase, Formatting.Indented));
-                MessageBox.Show("Import réussi dans la base principale !", "Succès", MessageBoxButton.OK, MessageBoxImage.Information);
+                File.WriteAllText(mainPath, Newtonsoft.Json.JsonConvert.SerializeObject(currentDatabase, Newtonsoft.Json.Formatting.Indented));
+
+                MessageBox.Show(
+                    "Import terminé : base principale mise à jour (rangement + éléments synchronisés).",
+                    "OK",
+                    MessageBoxButton.OK,
+                    MessageBoxImage.Information);
             }
             catch (Exception ex)
             {
-                MessageBox.Show($"Erreur lors de l'importation : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Erreur import : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
-
-
 
         private void SaveSharedDatabase_Click(object sender, RoutedEventArgs e)
         {
@@ -323,15 +355,16 @@ namespace AccesClientWPF.Views
             };
 
             if (_originalFileName != null)
-            {
                 saveFileDialog.FileName = _originalFileName;
-            }
 
             if (saveFileDialog.ShowDialog() == true)
             {
                 _currentFilePath = saveFileDialog.FileName;
                 _originalFileName = Path.GetFileNameWithoutExtension(_currentFilePath);
-                this.Title = $"Accès Client 1.1.0 ({_originalFileName})";
+
+                var version = GetAppVersion();
+                this.Title = $"Accès Client {version} / Partagé ({_originalFileName})";
+
                 SaveSharedDatabase_Click(null, null);
             }
         }
@@ -343,60 +376,152 @@ namespace AccesClientWPF.Views
 
         private void FileList_MouseDoubleClick(object sender, MouseButtonEventArgs e)
         {
-            if (sender is ListView listView && listView.SelectedItem is FileModel selectedFile)
+            if (_viewModel?.SelectedClient == null)
+                return;
+
+            // Support ListView OU ListBox (tu as CardsList en ListBox)
+            if (sender is ListBox lb && lb.SelectedItem is FileModel fileFromListBox)
             {
-                // Afficher les détails du fichier plutôt que de l'exécuter
-                _viewModel.EditSelectedFile(selectedFile);
+                EditFileWithInjection(fileFromListBox);
+                return;
+            }
+
+            if (sender is ListView lv && lv.SelectedItem is FileModel fileFromListView)
+            {
+                EditFileWithInjection(fileFromListView);
+                return;
+            }
+        }
+
+        private void EditFileWithInjection(FileModel selectedFile)
+        {
+            if (selectedFile == null) return;
+
+            // ✅ RÈGLE : un rangement non vide ne peut pas être modifié (renommage interdit)
+            if (string.Equals(selectedFile.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
+            {
+                bool hasChildren = _viewModel.AllFiles.Any(f =>
+                    string.Equals(f.Client, selectedFile.Client, StringComparison.OrdinalIgnoreCase) &&
+                    !string.Equals(f.Type, "MotDePasse", StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.RangementParent ?? "", selectedFile.Name ?? "", StringComparison.OrdinalIgnoreCase));
+
+                if (hasChildren)
+                {
+                    MessageBox.Show(
+                        "Modification interdite : ce rangement contient des éléments.\n" +
+                        "Déplace d'abord les éléments vers la racine ou un autre rangement, puis renomme.",
+                        "Modification interdite",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
+            var win = new AddEntryWindow(
+                _viewModel.Clients,
+                _viewModel.SelectedClient,
+                editingFile: selectedFile,
+                injectedFiles: _viewModel.AllFiles);
+
+            win.Owner = this;
+
+            if (win.ShowDialog() == true && win.FileEntry != null)
+            {
+                var existing = _viewModel.AllFiles.FirstOrDefault(f =>
+                    string.Equals(f.Client, selectedFile.Client, StringComparison.OrdinalIgnoreCase) &&
+                    string.Equals(f.Name, selectedFile.Name, StringComparison.OrdinalIgnoreCase));
+
+                if (existing != null)
+                {
+                    var idx = _viewModel.AllFiles.IndexOf(existing);
+                    _viewModel.AllFiles[idx] = win.FileEntry;
+                }
+                else
+                {
+                    _viewModel.AllFiles.Add(win.FileEntry);
+                }
+
+                var c = _viewModel.SelectedClient;
+                _viewModel.SelectedClient = null;
+                _viewModel.SelectedClient = c;
             }
         }
 
         private void AddContextMenu_Click(object sender, RoutedEventArgs e)
         {
-            // Vérifier uniquement si un client est sélectionné, pas si un élément est sélectionné
-            if (_viewModel.SelectedClient == null)
+            // Vérifier uniquement si un client est sélectionné
+            if (_viewModel?.SelectedClient == null)
             {
                 MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un élément.",
                     "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            // Si un client est sélectionné, on peut ajouter un fichier
-            _viewModel.AddFile();
+            // ✅ injection .antclient
+            AddButton_Click(sender, e);
         }
 
         private void EditContextMenu_Click(object sender, RoutedEventArgs e)
         {
+            if (_viewModel?.SelectedClient == null)
+            {
+                MessageBox.Show("Veuillez sélectionner un client.",
+                    "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
             if (_viewModel.SelectedFile == null)
             {
                 MessageBox.Show("Veuillez sélectionner un élément à modifier.",
                     "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
-            _viewModel.EditSelectedFile();
+
+            EditFileWithInjection(_viewModel.SelectedFile);
         }
 
         private void DeleteContextMenu_Click(object sender, RoutedEventArgs e)
         {
-            if (_viewModel.SelectedFile != null)
-            {
-                MessageBoxResult result = MessageBox.Show(
-                    $"Êtes-vous sûr de vouloir supprimer l'élément '{_viewModel.SelectedFile.Name}' ?",
-                    "Confirmation de suppression",
-                    MessageBoxButton.YesNo,
-                    MessageBoxImage.Question);
-
-                if (result == MessageBoxResult.Yes)
-                {
-                    _viewModel.DeleteSelectedFile();
-                }
-            }
-            else
+            if (_viewModel?.SelectedFile == null)
             {
                 MessageBox.Show("Veuillez sélectionner un élément à supprimer.",
                     "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            var file = _viewModel.SelectedFile;
+
+            // ✅ Sécurité : interdire suppression d'un rangement non vide
+            if (string.Equals(file.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
+            {
+                bool hasChildren = _viewModel.AllFiles.Any(f =>
+                    string.Equals(f.Client, file.Client, StringComparison.OrdinalIgnoreCase)
+                    && !string.Equals(f.Type, "MotDePasse", StringComparison.OrdinalIgnoreCase)
+                    && string.Equals(f.RangementParent ?? "", file.Name ?? "", StringComparison.OrdinalIgnoreCase));
+
+                if (hasChildren)
+                {
+                    MessageBox.Show(
+                        "Suppression interdite : ce rangement contient des éléments.\n" +
+                        "Déplace d'abord les éléments vers la racine ou un autre rangement.",
+                        "Suppression interdite",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
+            var result = MessageBox.Show(
+                $"Êtes-vous sûr de vouloir supprimer l'élément '{file.Name}' ?",
+                "Confirmation de suppression",
+                MessageBoxButton.YesNo,
+                MessageBoxImage.Question);
+
+            if (result == MessageBoxResult.Yes)
+            {
+                _viewModel.DeleteSelectedFile();
             }
         }
-
         private void MainScrollViewer_PreviewMouseWheel(object sender, MouseWheelEventArgs e)
         {
             ScrollViewer scv = (ScrollViewer)sender;
@@ -804,21 +929,34 @@ namespace AccesClientWPF.Views
 
         private void FileList_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
         {
-            // 1) sélectionner l'item sous la souris
+            var sel = GetSelector(sender);
+            if (sel == null) return;
+
+            // 1) Sélectionner l'item sous la souris (ListViewItem OU ListBoxItem)
             var dep = (DependencyObject)e.OriginalSource;
+
             var lvi = FindParent<ListViewItem>(dep);
             if (lvi != null)
             {
-                lvi.IsSelected = true;            // => met aussi SelectedItem
-                FileList.Focus();
+                lvi.IsSelected = true;
+                sel.Focus();
+            }
+            else
+            {
+                var lbi = FindParent<ListBoxItem>(dep);
+                if (lbi != null)
+                {
+                    lbi.IsSelected = true;
+                    sel.Focus();
+                }
             }
 
             // 2) Récupérer le menu + activer/désactiver selon sélection
-            ContextMenu menu = FileList.ContextMenu;
+            ContextMenu menu = sel.ContextMenu;
             if (menu == null) return;
 
             bool clientSelected = _viewModel.SelectedClient != null;
-            bool itemSelected = FileList.SelectedItem != null;
+            bool itemSelected = sel.SelectedItem != null;
 
             // Ordre attendu : 0 Ajouter, 1 Modifier, 2 Monter, 3 Descendre, 4 Tester, 5 Supprimer
             if (menu.Items.Count > 0) ((MenuItem)menu.Items[0]).IsEnabled = clientSelected; // Ajouter
@@ -828,14 +966,16 @@ namespace AccesClientWPF.Views
             if (menu.Items.Count > 4) ((MenuItem)menu.Items[4]).IsEnabled = itemSelected;   // Tester
             if (menu.Items.Count > 5) ((MenuItem)menu.Items[5]).IsEnabled = itemSelected;   // Supprimer
 
-            // 3) ouvrir le menu à l’endroit du clic si un client est sélectionné
+            // 3) Ouvrir le menu à l’endroit du clic si un client est sélectionné
             if (clientSelected)
             {
-                Point mousePosition = e.GetPosition(FileList);
-                menu.Placement = System.Windows.Controls.Primitives.PlacementMode.Relative;
-                menu.PlacementTarget = FileList;
+                Point mousePosition = e.GetPosition(sel);
+
+                menu.Placement = PlacementMode.Relative;
+                menu.PlacementTarget = sel;
                 menu.HorizontalOffset = mousePosition.X;
                 menu.VerticalOffset = mousePosition.Y;
+
                 menu.IsOpen = true;
                 e.Handled = true;
             }
@@ -843,11 +983,14 @@ namespace AccesClientWPF.Views
 
         private void FileList_ContextMenuOpening(object sender, ContextMenuEventArgs e)
         {
-            ContextMenu menu = FileList.ContextMenu;
+            var sel = GetSelector(sender);
+            if (sel == null) return;
+
+            ContextMenu menu = sel.ContextMenu;
             if (menu == null) return;
 
             bool clientSelected = _viewModel.SelectedClient != null;
-            bool itemSelected = FileList.SelectedItem != null;
+            bool itemSelected = sel.SelectedItem != null;
 
             if (menu.Items.Count > 0) ((MenuItem)menu.Items[0]).IsEnabled = clientSelected; // Ajouter
             if (menu.Items.Count > 1) ((MenuItem)menu.Items[1]).IsEnabled = itemSelected;   // Modifier
@@ -856,23 +999,160 @@ namespace AccesClientWPF.Views
             if (menu.Items.Count > 4) ((MenuItem)menu.Items[4]).IsEnabled = itemSelected;   // Tester
             if (menu.Items.Count > 5) ((MenuItem)menu.Items[5]).IsEnabled = itemSelected;   // Supprimer
 
-            if (!clientSelected) e.Handled = true;
+            if (!clientSelected)
+                e.Handled = true;
         }
 
-
-
-        private void AddButtonDirect_Click(object sender, RoutedEventArgs e)
+        private static Selector GetSelector(object sender)
         {
-            // Appel direct à la méthode d'ajout (même logique que pour le menu contextuel)
-            if (_viewModel.SelectedClient == null)
+            return sender as Selector; // ListBox / ListView
+        }
+
+        private void AddButton_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel?.SelectedClient == null)
             {
-                MessageBox.Show("Veuillez sélectionner un client avant d'ajouter un élément.",
-                    "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                MessageBox.Show("Veuillez sélectionner un client.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 return;
             }
 
-            // Si un client est sélectionné, on peut ajouter un fichier
-            _viewModel.AddFile();
+            // ✅ IMPORTANT : Share = exclusivement base .antclient
+            var win = new AddEntryWindow(
+                _viewModel.Clients,
+                _viewModel.SelectedClient,
+                editingFile: null,
+                injectedFiles: _viewModel.AllFiles);
+
+            win.Owner = this;
+
+            if (win.ShowDialog() == true && win.FileEntry != null)
+            {
+                _viewModel.AllFiles.Add(win.FileEntry);
+
+                // Refresh affichage
+                var selected = _viewModel.SelectedClient;
+                _viewModel.SelectedClient = null;
+                _viewModel.SelectedClient = selected;
+
+                // Optionnel: si tu as un Save explicite sur Share, ne force pas ici.
+                // Sinon tu peux décommenter si ton VM a une méthode de save:
+                // _viewModel.SaveSharedDatabase();
+            }
+        }
+
+        private void ListViewItem_PreviewMouseRightButtonDown(object sender, MouseButtonEventArgs e)
+        {
+            if (sender is ListViewItem item)
+            {
+                item.IsSelected = true;
+                item.Focus();
+            }
+        }
+
+        private void ElementsContextMenu_Opened(object sender, RoutedEventArgs e)
+        {
+            if (sender is not ContextMenu menu) return;
+
+            bool clientSelected = _viewModel?.SelectedClient != null;
+            bool itemSelected = _viewModel?.SelectedFile != null;
+
+            // Activer/désactiver
+            foreach (var obj in menu.Items)
+            {
+                if (obj is not MenuItem mi) continue;
+
+                var header = (mi.Header?.ToString() ?? "").ToLowerInvariant();
+                var tag = (mi.Tag?.ToString() ?? "").ToLowerInvariant();
+
+                if (header.Contains("ajouter"))
+                    mi.IsEnabled = clientSelected;
+
+                else if (header.Contains("modifier") || header.Contains("supprimer") || header.Contains("tester"))
+                    mi.IsEnabled = itemSelected;
+
+                else if (tag == "goroot" || header.Contains("racine"))
+                    mi.IsEnabled = itemSelected;
+
+                else if (tag == "goto" || header.Contains("aller vers"))
+                    mi.IsEnabled = itemSelected;
+            }
+
+            // Reconstruire "Aller vers..." (Tag="GoTo")
+            var goTo = menu.Items.OfType<MenuItem>().FirstOrDefault(x => (x.Tag?.ToString() ?? "") == "GoTo");
+            if (goTo == null) return;
+
+            goTo.Items.Clear();
+
+            if (!clientSelected || !itemSelected)
+                return;
+
+            // Ne jamais proposer pour un rangement (un rangement est en racine)
+            if (string.Equals(_viewModel.SelectedFile.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            var clientName = _viewModel.SelectedClient.Name;
+
+            var rangements = _viewModel.AllFiles
+                .Where(f => string.Equals(f.Client, clientName, StringComparison.OrdinalIgnoreCase))
+                .Where(f => string.Equals(f.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
+                .Where(f => string.IsNullOrWhiteSpace(f.RangementParent))
+                .Select(f => f.Name)
+                .Where(n => !string.IsNullOrWhiteSpace(n))
+                .Distinct(StringComparer.OrdinalIgnoreCase)
+                .OrderBy(n => n, StringComparer.OrdinalIgnoreCase)
+                .ToList();
+
+            foreach (var r in rangements)
+            {
+                var mi = new MenuItem
+                {
+                    Header = r,
+                    Tag = r,
+                    Style = (Style)FindResource("ContextMenuItemStyle")
+                };
+                mi.Click += MoveToRangement_Click;
+                goTo.Items.Add(mi);
+            }
+
+            if (goTo.Items.Count == 0)
+                goTo.Items.Add(new MenuItem { Header = "(Aucun rangement)", IsEnabled = false });
+        }
+
+        private void MoveToRangement_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel?.SelectedClient == null || _viewModel.SelectedFile == null)
+                return;
+
+            if (sender is not MenuItem mi) return;
+
+            var targetRangement = mi.Tag?.ToString();
+            if (string.IsNullOrWhiteSpace(targetRangement))
+                return;
+
+            // Déplacer l’élément vers ce rangement (base partagée)
+            _viewModel.SelectedFile.RangementParent = targetRangement;
+
+            // Refresh UI
+            var c = _viewModel.SelectedClient;
+            _viewModel.SelectedClient = null;
+            _viewModel.SelectedClient = c;
+        }
+
+        private void MoveToRoot_Click(object sender, RoutedEventArgs e)
+        {
+            if (_viewModel?.SelectedFile == null) return;
+
+            // Ne pas déplacer un rangement lui-même (il est déjà racine)
+            if (string.Equals(_viewModel.SelectedFile.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
+                return;
+
+            // Update modèle
+            _viewModel.SelectedFile.RangementParent = null;
+
+            // Rafraîchir l’affichage
+            var c = _viewModel.SelectedClient;
+            _viewModel.SelectedClient = null;
+            _viewModel.SelectedClient = c;
         }
 
         private void OpenFile(string path)

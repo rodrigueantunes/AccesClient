@@ -997,6 +997,22 @@ namespace AccesClientWPF.ViewModels
                 return;
             }
 
+            // ✅ RÈGLE : si le rangement contient des éléments => pas de modification (renommage interdit)
+            if (string.Equals((target.Type ?? "").Trim(), "Rangement", StringComparison.OrdinalIgnoreCase))
+            {
+                var dbCheck = LoadDatabase();
+                if (RangementHasChildren(target, dbCheck))
+                {
+                    MessageBox.Show(
+                        "Modification interdite : ce rangement contient des éléments.\n" +
+                        "Déplace d'abord les éléments vers la racine ou un autre rangement, puis renomme.",
+                        "Modification interdite",
+                        MessageBoxButton.OK,
+                        MessageBoxImage.Warning);
+                    return;
+                }
+            }
+
             // copie “clé” robuste
             var original = new FileModel
             {
@@ -1937,6 +1953,26 @@ namespace AccesClientWPF.ViewModels
                 FullPath = "",
                 RangementParent = null
             });
+        }
+
+        public bool RangementHasChildren(FileModel rangement, Models.DatabaseModel db = null)
+        {
+            if (rangement == null) return false;
+            if (!string.Equals((rangement.Type ?? "").Trim(), "Rangement", StringComparison.OrdinalIgnoreCase))
+                return false;
+
+            db ??= LoadDatabase();
+
+            var client = (rangement.Client ?? SelectedClient?.Name ?? "").Trim();
+            var name = (rangement.Name ?? "").Trim();
+
+            if (string.IsNullOrWhiteSpace(client) || string.IsNullOrWhiteSpace(name))
+                return false;
+
+            return db.Files.Any(f =>
+                string.Equals((f.Client ?? "").Trim(), client, StringComparison.OrdinalIgnoreCase) &&
+                !string.Equals((f.Type ?? "").Trim(), "MotDePasse", StringComparison.OrdinalIgnoreCase) &&
+                string.Equals((f.RangementParent ?? "").Trim(), name, StringComparison.OrdinalIgnoreCase));
         }
 
         private void ReloadDatabase()

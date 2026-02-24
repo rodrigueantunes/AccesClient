@@ -49,19 +49,14 @@ namespace AccesClientWPF.Views
         // --- DPI helper (fiable multi-DPI, sans usine à gaz)
         public static Rect PixelsToDips(int leftPx, int topPx, int widthPx, int heightPx)
         {
-            // fallback 96dpi
-            uint dpiX = 96, dpiY = 96;
-            try
-            {
-                var pt = new POINT { x = leftPx + 1, y = topPx + 1 };
-                IntPtr hMon = MonitorFromPoint(pt, 2 /*MONITOR_DEFAULTTONEAREST*/);
-                if (hMon != IntPtr.Zero)
-                    GetDpiForMonitor(hMon, 0 /*MDT_EFFECTIVE_DPI*/, out dpiX, out dpiY);
-            }
-            catch { /* ignore */ }
+            // Si le process n’est PAS per-monitor aware :
+            // les valeurs de GetMonitorInfo sont déjà dans l’espace "logique" du process -> NE PAS reconvertir,
+            // sinon tu sous-dimensionnes sur les écrans zoomés.
+            if (!AccesClientWPF.Helpers.DpiHelper.IsPerMonitorAwareProcess())
+                return new Rect(leftPx, topPx, widthPx, heightPx);
 
-            double scaleX = dpiX / 96.0;
-            double scaleY = dpiY / 96.0;
+            // Process per-monitor aware : coords en pixels physiques -> conversion vers DIPs
+            var (scaleX, scaleY) = AccesClientWPF.Helpers.DpiHelper.GetScaleForPoint(leftPx + 1, topPx + 1);
 
             return new Rect(
                 leftPx / scaleX,

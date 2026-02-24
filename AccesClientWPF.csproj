@@ -9,17 +9,44 @@
 		<!-- Empêche la détection automatique des .xaml -->
 		<EnableDefaultPageItems>false</EnableDefaultPageItems>
 
+		<ApplicationManifest>app.manifest</ApplicationManifest>		
 		<ApplicationIcon>DALL·E-2025-02-22-14.09.08-A-modern_-professional-icon-for-a-client-access-management-application.ico</ApplicationIcon>
+
+		<Version>1.6.3</Version>
+
+		<ApplicationManifest>app.manifest</ApplicationManifest>
 	</PropertyGroup>
 
 	<ItemGroup>
+		<None Remove="Resources\fleche.png" />
 		<None Remove="Resources\\dossier.png" />
 		<None Remove="Resources\\fichier.png" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Content Include="version.txt">
+			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Content>
+	</ItemGroup>
+	
+	<ItemGroup>
+		<Page Include="Views\UpdatePromptWindow.xaml" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Page Include="Views\UpdateProgressWindow.xaml" />
+	</ItemGroup>
+
+	<ItemGroup>
+		<Page Include="Views\UpdateInProgressWindow.xaml" />
 	</ItemGroup>
 
 	<!-- Icône de l'application -->
 	<ItemGroup>
 		<Content Include="DALL·E-2025-02-22-14.09.08-A-modern_-professional-icon-for-a-client-access-management-application.ico" />
+		<Resource Include="Resources\fleche.png">
+		  <CopyToOutputDirectory>Always</CopyToOutputDirectory>
+		</Resource>
 		<Resource Include="Resources\\dossier.png">
 			<CopyToOutputDirectory>Always</CopyToOutputDirectory>
 		</Resource>
@@ -88,9 +115,39 @@
 		<None Update="Views\SharedDatabaseWindow.xaml">
 		  <Generator>MSBuild:Compile</Generator>
 		</None>
+		<None Update="Views\UpdateInProgressWindow.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</None>
+		<None Update="Views\UpdateProgressWindow.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</None>
+		<None Update="Views\UpdatePromptWindow.xaml">
+		  <Generator>MSBuild:Compile</Generator>
+		</None>
 
 		<!-- Supprime la déclaration de type None pour ChooseBrowserWindow.xaml si elle existait -->
 		<!-- On la remplace par l'entrée <Page Include=\"Views\\ChooseBrowserWindow.xaml\" /> ci-dessus -->
+	</ItemGroup>
+
+	<ItemGroup>
+		<ProjectReference Include="..\AccesClientUpdaterHost\AccesClientUpdaterHost.csproj" />
+	</ItemGroup>
+
+	<Target Name="CopyUpdaterHostToOutput" AfterTargets="Build">
+		<ItemGroup>
+			<UpdaterHostExe Include="..\AccesClientUpdaterHost\bin\$(Configuration)\$(TargetFramework)\AccesClientUpdaterHost.exe" />
+		</ItemGroup>
+
+		<!-- Copie seulement si le fichier existe -->
+		<Copy SourceFiles="@(UpdaterHostExe)" DestinationFolder="$(TargetDir)" SkipUnchangedFiles="true" Condition="Exists('%(UpdaterHostExe.Identity)')" />
+	</Target>
+
+	<ItemGroup>
+	  <EditorConfigFiles Remove="C:\Application\AccesClientWPF\.editorconfig" />
+	</ItemGroup>
+
+	<ItemGroup>
+	  <None Include="C:\Application\AccesClientWPF\.editorconfig" />
 	</ItemGroup>
 
 </Project>

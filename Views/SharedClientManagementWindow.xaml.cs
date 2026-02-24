@@ -129,16 +129,20 @@ namespace AccesClientWPF.Views
         {
             if (LstClients.SelectedItem is ClientModel selectedClient)
             {
-                var addEntryWindow = new AddEntryWindow(_viewModel.Clients, selectedClient);
+                // ✅ Injection : .antclient (AllFiles du SharedDatabaseViewModel)
+                var addEntryWindow = new AddEntryWindow(
+                    _viewModel.Clients,
+                    selectedClient,
+                    editingFile: null,
+                    injectedFiles: _viewModel.AllFiles);
+
                 if (addEntryWindow.ShowDialog() == true && addEntryWindow.FileEntry != null)
                 {
                     _viewModel.AllFiles.Add(addEntryWindow.FileEntry);
 
-                    // Si le client sélectionné dans cette fenêtre est le même que celui du ViewModel parent,
-                    // on recharge également les fichiers filtrés
                     if (_viewModel.SelectedClient != null && _viewModel.SelectedClient.Name == selectedClient.Name)
                     {
-                        _viewModel.SelectedClient = null; // Forcer la réinitialisation
+                        _viewModel.SelectedClient = null;
                         _viewModel.SelectedClient = selectedClient;
                     }
                 }

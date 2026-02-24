@@ -201,6 +201,29 @@ namespace AccesClientWPF.Views
                 return;
             }
 
+            // ✅ RÈGLE : un rangement non vide ne peut pas être modifié (ni supprimé)
+            var miEdit = cm.Items.OfType<MenuItem>().FirstOrDefault(m => (m.Header?.ToString() ?? "").StartsWith("Modifier", StringComparison.OrdinalIgnoreCase));
+            var miDelete = cm.Items.OfType<MenuItem>().FirstOrDefault(m => (m.Header?.ToString() ?? "").StartsWith("Supprimer", StringComparison.OrdinalIgnoreCase));
+
+            bool lockRangement = false;
+            if (string.Equals((item.Type ?? "").Trim(), "Rangement", StringComparison.OrdinalIgnoreCase))
+            {
+                var dbCheck = vm.LoadDatabase();
+                lockRangement = vm.RangementHasChildren(item, dbCheck);
+            }
+
+            if (miEdit != null)
+            {
+                miEdit.IsEnabled = !lockRangement;
+                miEdit.ToolTip = lockRangement ? "Modification interdite : ce rangement contient des éléments." : null;
+            }
+
+            if (miDelete != null)
+            {
+                miDelete.IsEnabled = !lockRangement;
+                miDelete.ToolTip = lockRangement ? "Suppression interdite : ce rangement contient des éléments." : null;
+            }
+
             if (miGoRoot != null)
                 miGoRoot.Visibility = string.IsNullOrWhiteSpace(item.RangementParent) ? Visibility.Collapsed : Visibility.Visible;
 

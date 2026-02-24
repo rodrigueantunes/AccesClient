@@ -30,10 +30,10 @@ namespace AccesClientWPF.Views
         public string PresetType { get; set; }
 
         public AddEntryWindow(
-            ObservableCollection<ClientModel> clients,
-            ClientModel selectedClient = null,
-            FileModel editingFile = null,
-            ObservableCollection<FileModel> injectedFiles = null) // ✅ NEW
+    ObservableCollection<ClientModel> clients,
+    ClientModel selectedClient = null,
+    FileModel editingFile = null,
+    ObservableCollection<FileModel> injectedFiles = null) // ✅ NEW
         {
             InitializeComponent();
 
@@ -96,22 +96,24 @@ namespace AccesClientWPF.Views
                 {
                     TxtIpDns.Text = credentials.ElementAtOrDefault(0) ?? string.Empty;
                     TxtUsername.Text = credentials.ElementAtOrDefault(1) ?? string.Empty;
-                    // mdp laissé vide (conservation gérée au save)
+
+                    // ✅ NEW : pré-remplir le mot de passe "normal" (3e partie)
+                    var rawRdsPass = credentials.ElementAtOrDefault(2) ?? string.Empty;
+                    TxtPassword.Password = GetDisplayedPassword(rawRdsPass);
                 }
                 else if (string.Equals(_editingFile.Type, "AnyDesk", StringComparison.OrdinalIgnoreCase))
                 {
                     TxtAnydeskId.Text = credentials.ElementAtOrDefault(0) ?? string.Empty;
 
-                    // ✅ pré-remplir password AnyDesk (2e partie du FullPath)
-                    var anydeskEncrypted = credentials.ElementAtOrDefault(1) ?? string.Empty;
-                    var anydeskDec = EncryptionHelper.Decrypt(anydeskEncrypted);
-                    TxtAnydeskPassword.Password = string.IsNullOrEmpty(anydeskDec) ? "" : anydeskDec;
+                    // ✅ NEW : pré-remplir password AnyDesk (2e partie du FullPath)
+                    var anydeskRaw = credentials.ElementAtOrDefault(1) ?? string.Empty;
+                    TxtAnydeskPassword.Password = GetDisplayedPassword(anydeskRaw);
 
                     // ✅ Windows
                     TxtWindowsUsername.Text = _editingFile.WindowsUsername ?? string.Empty;
 
-                    var winDec = EncryptionHelper.Decrypt(_editingFile.WindowsPassword ?? "");
-                    TxtWindowsPassword.Password = string.IsNullOrEmpty(winDec) ? "" : winDec;
+                    // ✅ NEW : afficher comme les autres (decrypt / clair si ancien)
+                    TxtWindowsPassword.Password = GetDisplayedPassword(_editingFile.WindowsPassword ?? "");
                 }
                 else if (string.Equals(_editingFile.Type, "VPN", StringComparison.OrdinalIgnoreCase))
                 {
@@ -141,8 +143,8 @@ namespace AccesClientWPF.Views
                 {
                     TxtPasswordUser.Text = _editingFile.WindowsUsername ?? string.Empty;
 
-                    var dec = EncryptionHelper.Decrypt(_editingFile.WindowsPassword ?? "");
-                    TxtPasswordPass.Password = string.IsNullOrEmpty(dec) ? "" : dec;
+                    // ✅ NEW : afficher comme les autres (decrypt / clair si ancien)
+                    TxtPasswordPass.Password = GetDisplayedPassword(_editingFile.WindowsPassword ?? "");
                 }
                 else if (string.Equals(_editingFile.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
                 {
@@ -430,6 +432,30 @@ namespace AccesClientWPF.Views
                 string folderPath = System.IO.Path.GetDirectoryName(dialog.FileName);
                 TxtFolderPath.Text = folderPath;
             }
+        }
+
+        private static string GetDisplayedPassword(string raw)
+        {
+            if (string.IsNullOrWhiteSpace(raw))
+                return string.Empty;
+
+            var dec = EncryptionHelper.Decrypt(raw);
+            if (!string.IsNullOrEmpty(dec))
+                return dec;
+
+            // Anciennes données en clair => on affiche tel quel
+            // Si ça ressemble à du Base64 mais pas déchiffrable => on affiche vide
+            // (et au Save, ton code conserve l’ancien chiffré si champ vide)
+            return IsBase64(raw) ? string.Empty : raw;
+        }
+
+        private static bool IsBase64(string s)
+        {
+            if (string.IsNullOrWhiteSpace(s) || s.Length % 4 != 0)
+                return false;
+
+            byte[] buffer = new byte[s.Length];
+            return Convert.TryFromBase64String(s, buffer, out _);
         }
 
         private void RefreshRangements()

@@ -31,6 +31,20 @@
     <Compile Update="Views\SharedDatabaseWindow.xaml.cs">
       <SubType>Code</SubType>
     </Compile>
+    <Compile Update="Views\UpdateInProgressWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Views\UpdateProgressWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+    <Compile Update="Views\UpdatePromptWindow.xaml.cs">
+      <SubType>Code</SubType>
+    </Compile>
+  </ItemGroup>
+  <ItemGroup>
+    <EmbeddedResource Update="Properties\Resources.resx">
+      <SubType>Designer</SubType>
+    </EmbeddedResource>
   </ItemGroup>
   <ItemGroup>
     <None Update="Views\AddEntryWindow.xaml">
@@ -55,6 +69,15 @@
       <SubType>Designer</SubType>
     </None>
     <None Update="Views\SharedDatabaseWindow.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Views\UpdateInProgressWindow.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Views\UpdateProgressWindow.xaml">
+      <SubType>Designer</SubType>
+    </None>
+    <None Update="Views\UpdatePromptWindow.xaml">
       <SubType>Designer</SubType>
     </None>
   </ItemGroup>
