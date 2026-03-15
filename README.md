@@ -105,7 +105,7 @@ Les contributions sont les bienvenues.
 
 ## Licence
 
-Ce projet est sous licence MIT.
+Aucune licence n’est fournie dans ce dépôt pour le moment.
 
 ## Auteur
 
