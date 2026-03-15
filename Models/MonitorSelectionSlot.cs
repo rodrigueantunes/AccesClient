@@ -8,6 +8,8 @@ namespace AccesClientWPF.Models
     {
         public int SlotNumber { get; }
 
+        public string SlotTitle => $"Session RDP — Écran n°{SlotNumber}";
+
         private ObservableCollection<ScreenItem> _availableScreens = new();
         public ObservableCollection<ScreenItem> AvailableScreens
         {

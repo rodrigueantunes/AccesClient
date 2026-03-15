@@ -25,7 +25,7 @@ namespace AccesClientWPF.ViewModels
     {
         private readonly string _jsonFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "database.json");
         private readonly string _accountsFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "rds_accounts.json");
-        
+
         private bool _isMultiMonitor;
         public bool IsMultiMonitor
         {
@@ -33,7 +33,7 @@ namespace AccesClientWPF.ViewModels
 
             set
             {
-                
+
                 if (_isMultiMonitor != value)
                 {
                     _isMultiMonitor = value;
@@ -146,7 +146,8 @@ namespace AccesClientWPF.ViewModels
             }
         }
 
-        private List<AccesClientWPF.Models.ScreenItem> _allScreens = new();
+        private List<ScreenItem> _allScreensEnum = new();
+        private List<ScreenItem> _allScreensSpatial = new();
         private bool _isUpdatingMonitorSlots;
 
         public ObservableCollection<ClientModel> Clients { get; set; } = new();
@@ -161,20 +162,21 @@ namespace AccesClientWPF.ViewModels
 
         private async void ShowScreenNumbers()
         {
-            // refresh rapide au cas où
-            _allScreens = Helpers.MonitorHelper.GetAllScreens();
+            _allScreensEnum = Helpers.MonitorHelper.GetAllScreens();
+            _allScreensSpatial = Helpers.MonitorHelper.OrderByWindowsLayout(_allScreensEnum);
 
-            // On affiche 2 secondes
             var windows = new List<Window>();
 
             try
             {
-                foreach (var s in _allScreens)
+                for (int i = 0; i < _allScreensSpatial.Count; i++)
                 {
+                    var s = _allScreensSpatial[i];
+
                     var boundsDips = AccesClientWPF.Views.ScreenNumberOverlayWindow.PixelsToDips(
                         s.Left, s.Top, s.Width, s.Height);
 
-                    var w = new AccesClientWPF.Views.ScreenNumberOverlayWindow(s.Index + 1, boundsDips);
+                    var w = new AccesClientWPF.Views.ScreenNumberOverlayWindow(i + 1, boundsDips);
                     windows.Add(w);
                     w.Show();
                 }
@@ -185,7 +187,7 @@ namespace AccesClientWPF.ViewModels
             {
                 foreach (var w in windows)
                 {
-                    try { w.Close(); } catch { /* ignore */ }
+                    try { w.Close(); } catch { }
                 }
             }
         }
@@ -306,6 +308,104 @@ namespace AccesClientWPF.ViewModels
         public ICommand MoveUpFileCommand { get; }
         public ICommand MoveDownFileCommand { get; }
 
+        private const string FichesBasePath = @"\\172.16.0.49\Docs\Fiches de fin de développement";
+
+        public ICommand OpenClientFolderCommand => new RelayCommand(p =>
+        {
+            if (p is not ClientModel client || string.IsNullOrWhiteSpace(client.Acronym))
+                return;
+
+            try
+            {
+                if (!Directory.Exists(FichesBasePath))
+                {
+                    MessageBox.Show($"Le chemin réseau '{FichesBasePath}' est inaccessible.",
+                        "Erreur", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var match = Directory.GetDirectories(FichesBasePath)
+                    .FirstOrDefault(d =>
+                    {
+                        var name = Path.GetFileName(d);
+                        var start = name.LastIndexOf('(');
+                        var end = name.LastIndexOf(')');
+                        if (start < 0 || end <= start) return false;
+                        var code = name.Substring(start + 1, end - start - 1).Trim();
+                        return code.Equals(client.Acronym, StringComparison.OrdinalIgnoreCase);
+                    });
+
+                if (match != null)
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{match}\"",
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    MessageBox.Show($"Aucun dossier trouvé pour l'acronyme '{client.Acronym}'.",
+                        "Dossier introuvable", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        });
+
+        public ICommand OpenDevelopmentSheetCommand => new RelayCommand(_ =>
+        {
+            if (SelectedClient == null || string.IsNullOrWhiteSpace(SelectedClient.Acronym))
+            {
+                MessageBox.Show("Veuillez sélectionner un client d'abord.",
+                    "Client non sélectionné", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                if (!Directory.Exists(FichesBasePath))
+                {
+                    MessageBox.Show($"Le chemin réseau '{FichesBasePath}' est inaccessible.",
+                        "Erreur", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    return;
+                }
+
+                var match = Directory.GetDirectories(FichesBasePath)
+                    .FirstOrDefault(d =>
+                    {
+                        var name = Path.GetFileName(d);
+                        var start = name.LastIndexOf('(');
+                        var end = name.LastIndexOf(')');
+                        if (start < 0 || end <= start) return false;
+                        var code = name.Substring(start + 1, end - start - 1).Trim();
+                        return code.Equals(SelectedClient.Acronym, StringComparison.OrdinalIgnoreCase);
+                    });
+
+                if (match != null)
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{match}\"",
+                        UseShellExecute = true
+                    });
+                }
+                else
+                {
+                    MessageBox.Show($"Aucun dossier trouvé pour l'acronyme '{SelectedClient.Acronym}'.",
+                        "Dossier introuvable", MessageBoxButton.OK, MessageBoxImage.Information);
+                }
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Erreur : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        });
+
         public event PropertyChangedEventHandler PropertyChanged;
 
         private bool _showCredentials;
@@ -395,9 +495,10 @@ namespace AccesClientWPF.ViewModels
 
         private void RefreshMonitors()
         {
-            _allScreens = MonitorHelper.OrderByWindowsLayout(MonitorHelper.GetAllScreens());
+            _allScreensEnum = MonitorHelper.GetAllScreens();
+            _allScreensSpatial = MonitorHelper.OrderByWindowsLayout(_allScreensEnum);
 
-            AvailableMonitorCount = _allScreens.Count;
+            AvailableMonitorCount = _allScreensSpatial.Count;
             MonitorCountOptions = new ObservableCollection<int>(Enumerable.Range(1, Math.Max(1, AvailableMonitorCount)));
 
             if (!IsMultiMonitor)
@@ -430,7 +531,12 @@ namespace AccesClientWPF.ViewModels
             _isUpdatingMonitorSlots = true;
             try
             {
-                var prev = MonitorSlots.Select(s => s.SelectedScreen?.Index).Where(i => i.HasValue).Select(i => i.Value).ToList();
+                var prev = MonitorSlots
+                    .Select(s => s.SelectedScreen?.Index)
+                    .Where(i => i.HasValue)
+                    .Select(i => i.Value)
+                    .ToList();
+
                 var used = new HashSet<int>();
                 var slots = new ObservableCollection<MonitorSelectionSlot>();
 
@@ -438,16 +544,16 @@ namespace AccesClientWPF.ViewModels
                 {
                     var slot = new MonitorSelectionSlot(i + 1, OnMonitorSlotChanged);
 
-                    AccesClientWPF.Models.ScreenItem chosen = null;
+                    ScreenItem chosen = null;
 
                     if (i < prev.Count)
                     {
                         var wanted = prev[i];
-                        chosen = _allScreens.FirstOrDefault(s => s.Index == wanted && !used.Contains(wanted));
+                        chosen = _allScreensSpatial.FirstOrDefault(s => s.Index == wanted && !used.Contains(s.Index));
                     }
 
                     if (chosen == null)
-                        chosen = _allScreens.FirstOrDefault(s => !used.Contains(s.Index));
+                        chosen = _allScreensSpatial.FirstOrDefault(s => !used.Contains(s.Index));
 
                     if (chosen != null)
                         used.Add(chosen.Index);
@@ -494,13 +600,20 @@ namespace AccesClientWPF.ViewModels
             _isUpdatingMonitorSlots = true;
             try
             {
-                var selected = MonitorSlots.Select(s => s.SelectedScreen?.Index).Where(i => i.HasValue).Select(i => i.Value).ToHashSet();
+                var selected = MonitorSlots
+                    .Select(s => s.SelectedScreen?.Index)
+                    .Where(i => i.HasValue)
+                    .Select(i => i.Value)
+                    .ToHashSet();
 
                 foreach (var slot in MonitorSlots)
                 {
                     var keep = slot.SelectedScreen?.Index;
-                    var allowed = _allScreens.Where(s => !selected.Contains(s.Index) || (keep.HasValue && s.Index == keep.Value)).ToList();
-                    slot.AvailableScreens = new ObservableCollection<AccesClientWPF.Models.ScreenItem>(allowed);
+                    var allowed = _allScreensSpatial
+                        .Where(s => !selected.Contains(s.Index) || (keep.HasValue && s.Index == keep.Value))
+                        .ToList();
+
+                    slot.AvailableScreens = new ObservableCollection<ScreenItem>(allowed);
 
                     if (slot.SelectedScreen != null && !allowed.Any(a => a.Index == slot.SelectedScreen.Index))
                         slot.SelectedScreen = null;
@@ -528,20 +641,19 @@ namespace AccesClientWPF.ViewModels
             if (MonitorSlots.Any(s => s.SelectedScreen == null))
                 return false;
 
-            var ids = MonitorSlots.Select(s => s.SelectedScreen.Index).ToList();
-            if (ids.Distinct().Count() != ids.Count)
+            var enumIndexes = MonitorSlots
+                .Select(s => s.SelectedScreen.Index)
+                .ToList();
+
+            if (enumIndexes.Distinct().Count() != enumIndexes.Count)
                 return false;
 
-            selectedMonitors = OrderSelectedMonitorsByWindowsLayout(ids, _allScreens);
-            return true;
-        }
+            var orderedForRdp = _allScreensSpatial
+                .Where(s => enumIndexes.Contains(s.Index))
+                .Select(s => s.Index.ToString());
 
-        private static string OrderSelectedMonitorsByWindowsLayout(List<int> selectedIndexes, List<ScreenItem> allScreens)
-        {
-            // allScreens est déjà trié Windows (RefreshMonitors)
-            var set = selectedIndexes.ToHashSet();
-            var ordered = allScreens.Where(s => set.Contains(s.Index)).Select(s => s.Index.ToString());
-            return string.Join(",", ordered);
+            selectedMonitors = string.Join(",", orderedForRdp);
+            return true;
         }
 
         private void LoadClients()
@@ -750,19 +862,19 @@ namespace AccesClientWPF.ViewModels
             var database = LoadDatabase();
 
             var all = database.Files
-                .Where(f => f.Client == SelectedClient.Name)
+                .Where(f => string.Equals(f.Client, SelectedClient.Name, StringComparison.OrdinalIgnoreCase))
                 .ToList();
 
             PasswordEntries = new ObservableCollection<FileModel>(
-                all.Where(f => f.Type == "MotDePasse")
+                all.Where(f => string.Equals(f.Type, "MotDePasse", StringComparison.OrdinalIgnoreCase))
             );
 
-            var center = all.Where(f => f.Type != "MotDePasse").ToList();
+            var center = all.Where(f => !string.Equals(f.Type, "MotDePasse", StringComparison.OrdinalIgnoreCase)).ToList();
 
             ReloadAvailableRangements();
 
             HasLevel2 =
-                center.Any(f => f.Type == "Rangement" && string.IsNullOrWhiteSpace(f.RangementParent)) ||
+                center.Any(f => string.Equals(f.Type, "Rangement", StringComparison.OrdinalIgnoreCase) && string.IsNullOrWhiteSpace(f.RangementParent)) ||
                 center.Any(f => !string.IsNullOrWhiteSpace(f.RangementParent));
 
             if (!HasLevel2)
@@ -777,10 +889,10 @@ namespace AccesClientWPF.ViewModels
             foreach (var file in center.Where(f => string.IsNullOrWhiteSpace(f.RangementParent)))
                 RootFiles.Add(file);
 
-            var firstRangement = RootFiles.FirstOrDefault(x => x.Type == "Rangement")?.Name;
+            var firstRangement = RootFiles.FirstOrDefault(x => string.Equals(x.Type, "Rangement", StringComparison.OrdinalIgnoreCase))?.Name;
 
             if (string.IsNullOrWhiteSpace(SelectedRangementName) ||
-                !RootFiles.Any(x => x.Type == "Rangement" && x.Name == SelectedRangementName))
+                !RootFiles.Any(x => string.Equals(x.Type, "Rangement", StringComparison.OrdinalIgnoreCase) && string.Equals(x.Name, SelectedRangementName, StringComparison.OrdinalIgnoreCase)))
             {
                 SelectedRangementName = firstRangement;
             }
@@ -791,13 +903,13 @@ namespace AccesClientWPF.ViewModels
 
             OnPropertyChanged(nameof(RootFiles));
             OnPropertyChanged(nameof(Level2Files));
-            
+
         }
 
         public void MoveToRacine(FileModel item)
         {
             if (SelectedClient == null || item == null) return;
-            if (string.IsNullOrWhiteSpace(item.RangementParent)) return; // déjà racine
+            if (string.IsNullOrWhiteSpace(item.RangementParent)) return;
 
             var db = LoadDatabase();
 
@@ -820,17 +932,14 @@ namespace AccesClientWPF.ViewModels
             if (SelectedClient == null || item == null) return;
             if (string.IsNullOrWhiteSpace(rangementName)) return;
 
-            // Interdit : un rangement ne va pas dans un rangement
             if (string.Equals(item.Type, "Rangement", StringComparison.OrdinalIgnoreCase))
                 return;
 
-            // Si déjà dans ce rangement : rien à faire
             if (string.Equals(item.RangementParent ?? "", rangementName, StringComparison.OrdinalIgnoreCase))
                 return;
 
             var db = LoadDatabase();
 
-            // ✅ crée le rangement "officiel" si absent
             EnsureRangementExists(db, rangementName);
 
             var existing = db.Files.FirstOrDefault(f =>
@@ -849,10 +958,6 @@ namespace AccesClientWPF.ViewModels
 
         private FileModel GetSelectedCenterItem()
         {
-            // En split :
-            // - colonne gauche : SelectedRootItem
-            // - colonne droite : SelectedFile
-            // En mode classique : SelectedFile
             return SelectedFile ?? SelectedRootItem;
         }
 
@@ -891,7 +996,6 @@ namespace AccesClientWPF.ViewModels
             scope.RemoveAt(idx);
             scope.Insert(newIdx, moving);
 
-            // Rebuild db.Files en conservant tout le reste
             var rebuilt = db.Files.ToList();
 
             rebuilt.RemoveAll(f =>
@@ -908,7 +1012,6 @@ namespace AccesClientWPF.ViewModels
 
             LoadFilesForSelectedClient();
 
-            // reselection
             if (HasLevel2)
             {
                 if (inLevel2)
@@ -945,9 +1048,9 @@ namespace AccesClientWPF.ViewModels
             var database = LoadDatabase();
 
             foreach (var file in database.Files.Where(f =>
-                         f.Client == SelectedClient.Name &&
+                         string.Equals(f.Client, SelectedClient.Name, StringComparison.OrdinalIgnoreCase) &&
                          f.Type != "MotDePasse" &&
-                         f.RangementParent == SelectedRangementName))
+                         string.Equals(f.RangementParent, SelectedRangementName, StringComparison.OrdinalIgnoreCase)))
             {
                 Level2Files.Add(file);
             }
@@ -976,7 +1079,7 @@ namespace AccesClientWPF.ViewModels
         private void ShowToast(string text, bool isError)
         {
             CopyToastText = text;
-            CopyToastBackground = isError ? "#E74C3C" : "#323232"; // rouge danger / gris
+            CopyToastBackground = isError ? "#E74C3C" : "#323232";
             IsCopyToastVisible = true;
 
             _copyToastTimer?.Stop();
@@ -997,7 +1100,6 @@ namespace AccesClientWPF.ViewModels
                 return;
             }
 
-            // ✅ RÈGLE : si le rangement contient des éléments => pas de modification (renommage interdit)
             if (string.Equals((target.Type ?? "").Trim(), "Rangement", StringComparison.OrdinalIgnoreCase))
             {
                 var dbCheck = LoadDatabase();
@@ -1013,7 +1115,6 @@ namespace AccesClientWPF.ViewModels
                 }
             }
 
-            // copie “clé” robuste
             var original = new FileModel
             {
                 Name = target.Name,
@@ -1031,7 +1132,6 @@ namespace AccesClientWPF.ViewModels
             {
                 var db = LoadDatabase();
 
-                // retrouver l’élément exact (inclut RangementParent)
                 var itemToReplace = db.Files.FirstOrDefault(f =>
                     string.Equals(f.Client, original.Client, StringComparison.OrdinalIgnoreCase) &&
                     string.Equals(f.Type, original.Type, StringComparison.OrdinalIgnoreCase) &&
@@ -1040,7 +1140,6 @@ namespace AccesClientWPF.ViewModels
 
                 if (itemToReplace == null) return;
 
-                // check doublon NOM + TYPE + parent (sinon tu bloques trop)
                 bool duplicateExists = db.Files.Any(f =>
                     f != itemToReplace &&
                     string.Equals(f.Client, editWindow.FileEntry.Client, StringComparison.OrdinalIgnoreCase) &&
@@ -1149,7 +1248,7 @@ namespace AccesClientWPF.ViewModels
             {
                 if (!TryGetSelectedMonitorsForRdp(out var selectedMonitors))
                 {
-                    MessageBox.Show("Sélection multi-moniteur incomplète. Choisissez un écran pour chaque liste.", "Multi-moniteur",
+                    MessageBox.Show("Sélection multi-moniteur incomplète. Choisissez un écran pour chaque emplacement.", "Multi-moniteur",
                         MessageBoxButton.OK, MessageBoxImage.Warning);
                     return;
                 }
@@ -1176,30 +1275,26 @@ namespace AccesClientWPF.ViewModels
                 bool useMulti = IsMultiMonitor;
                 string selectedMonitorsForRdp = selectedMonitors;
 
-                if (useMulti)
+                if (useMulti && !UseAllMonitors)
                 {
-                    // ✅ Si "Tous les écrans" est coché => PAS DE TEST
-                    if (!UseAllMonitors)
+                    var screensToUse = _allScreensEnum;
+
+                    if (!string.IsNullOrWhiteSpace(selectedMonitorsForRdp))
                     {
-                        var screensToUse = _allScreens;
+                        var ids = selectedMonitorsForRdp
+                            .Split(',')
+                            .Select(x => int.TryParse(x, out var v) ? v : -1)
+                            .Where(v => v >= 0)
+                            .ToHashSet();
 
-                        if (!string.IsNullOrWhiteSpace(selectedMonitorsForRdp))
-                        {
-                            var ids = selectedMonitorsForRdp
-                                .Split(',')
-                                .Select(x => int.TryParse(x, out var v) ? v : -1)
-                                .Where(v => v >= 0)
-                                .ToHashSet();
+                        screensToUse = _allScreensEnum.Where(s => ids.Contains(s.Index)).ToList();
+                    }
 
-                            screensToUse = _allScreens.Where(s => ids.Contains(s.Index)).ToList();
-                        }
-
-                        if (!Helpers.MonitorHelper.AreSelectedScreensContiguousInWindowsOrder(_allScreens, screensToUse, out var reason))
-                        {
-                            useMulti = false;
-                            selectedMonitorsForRdp = null;
-                            ShowToast(reason, isError: true);
-                        }
+                    if (!MonitorHelper.AreSelectedScreensContiguousInWindowsOrder(_allScreensSpatial, screensToUse, out var reason))
+                    {
+                        useMulti = false;
+                        selectedMonitorsForRdp = null;
+                        ShowToast(reason, isError: true);
                     }
                 }
 
@@ -1488,7 +1583,7 @@ namespace AccesClientWPF.ViewModels
         {
             MoveSelected(+1);
         }
-        
+
 
         private void SaveFiles()
         {
@@ -1522,13 +1617,29 @@ namespace AccesClientWPF.ViewModels
             {
                 Process.Start(new ProcessStartInfo
                 {
-                    FileName = "https://extranet.volume-software.com/",
+                    FileName = "https://extranet.volume-software.com/espace_client.php?page=mes_volufiches",
                     UseShellExecute = true
                 });
             }
             catch (Exception ex)
             {
                 MessageBox.Show($"Impossible d'ouvrir l'extranet : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void OpenExtranetHelp()
+        {
+            try
+            {
+                Process.Start(new ProcessStartInfo
+                {
+                    FileName = "https://extranet.volume-software.com/doc/voluaide/default.htm",
+                    UseShellExecute = true
+                });
+            }
+            catch (Exception ex)
+            {
+                MessageBox.Show($"Impossible d'ouvrir l'aide en ligne : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -1614,8 +1725,7 @@ namespace AccesClientWPF.ViewModels
                 string dropboxPath = FindDropboxPath();
                 if (string.IsNullOrEmpty(dropboxPath))
                 {
-                    MessageBox.Show("Impossible de localiser le dossier Dropbox. Veuillez sélectionner manuellement le dossier.",
-                        "Dossier Dropbox introuvable", MessageBoxButton.OK, MessageBoxImage.Warning);
+                    OpenExtranetHelp();
                     return;
                 }
 
@@ -1629,15 +1739,12 @@ namespace AccesClientWPF.ViewModels
                     string helpFolder = Path.Combine(dropboxPath, "VoluHelp");
                     if (!Directory.Exists(helpFolder))
                     {
-                        MessageBox.Show($"Le dossier VoluHelp n'existe pas : {helpFolder}\n\n" +
-                                        $"Contenu du dossier Dropbox : {string.Join(", ", Directory.GetDirectories(dropboxPath))}",
-                                        "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                        OpenExtranetHelp();
                         return;
                     }
 
                     var filesInFolder = Directory.GetFiles(helpFolder);
-                    MessageBox.Show($"Aucun fichier d'aide trouvé. Fichiers présents :\n{string.Join("\n", filesInFolder)}",
-                        "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                    OpenExtranetHelp();
                     return;
                 }
 
@@ -1944,7 +2051,6 @@ namespace AccesClientWPF.ViewModels
 
             if (exists) return;
 
-            // Création "officielle" à la racine
             db.Files.Add(new FileModel
             {
                 Client = SelectedClient.Name,

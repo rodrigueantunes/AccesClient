@@ -1,9 +1,11 @@
-﻿using System;
+using System;
 using System.Collections.Generic;
 using System.Collections.ObjectModel;
+using System.Diagnostics;
 using System.IO;
 using System.Linq;
 using System.Windows;
+using System.Windows.Controls;
 using System.Windows.Media;
 using AccesClientWPF.Models;
 using Newtonsoft.Json;
@@ -16,7 +18,8 @@ namespace AccesClientWPF.Views
         private ObservableCollection<FileModel> _files;
         private readonly string _jsonFilePath = Path.Combine(AppDomain.CurrentDomain.BaseDirectory, "database.json");
 
-        // Variable pour le tri
+        private const string BaseFolderPath = @"\\172.16.0.49\Docs\Fiches de fin de développement";
+
         private bool _isAscendingSort = true;
 
         public ClientManagementWindow(ObservableCollection<ClientModel> clients)
@@ -29,59 +32,35 @@ namespace AccesClientWPF.Views
 
         private void SortClients_Click(object sender, RoutedEventArgs e)
         {
-            // Inverser le mode de tri
             _isAscendingSort = !_isAscendingSort;
 
-            // Mettre à jour l'apparence du bouton
-            if (_isAscendingSort)
-            {
-                TxtSortLabel.Text = "Trier A-Z";
-                // Flèche vers le bas
-                SortIcon.Data = Geometry.Parse("M7,21L12,17L17,21V3H7V21Z");
-            }
-            else
-            {
-                TxtSortLabel.Text = "Trier Z-A";
-                // Flèche vers le haut
-                SortIcon.Data = Geometry.Parse("M7,3L12,7L17,3V21H7V3Z");
-            }
+            BtnSort.ToolTip = _isAscendingSort ? "Trier A-Z" : "Trier Z-A";
 
-            // Effectuer le tri
+            if (_isAscendingSort)
+                SortIcon.Data = Geometry.Parse("M3,13H15V11H3M3,6V8H21V6M3,18H9V16H3V18Z");
+            else
+                SortIcon.Data = Geometry.Parse("M3,11H15V13H3M3,18V16H21V18M3,6H9V8H3V6Z");
+
             SortClientsList();
         }
 
         private void SortClientsList()
         {
             var selectedClient = LstClients.SelectedItem as ClientModel;
-
-            // Créer une liste temporaire pour le tri
             var sortedList = new List<ClientModel>(_clients);
 
             if (_isAscendingSort)
-            {
-                // Tri ascendant (A-Z)
                 sortedList.Sort((x, y) => string.Compare(x.Name, y.Name, StringComparison.OrdinalIgnoreCase));
-            }
             else
-            {
-                // Tri descendant (Z-A)
                 sortedList.Sort((x, y) => string.Compare(y.Name, x.Name, StringComparison.OrdinalIgnoreCase));
-            }
 
-            // Vider et remplir la collection avec les éléments triés
             _clients.Clear();
             foreach (var client in sortedList)
-            {
                 _clients.Add(client);
-            }
 
-            // Restaurer la sélection si possible
             if (selectedClient != null)
-            {
                 LstClients.SelectedItem = _clients.FirstOrDefault(c => c.Name == selectedClient.Name);
-            }
 
-            // Sauvegarder les changements
             SaveData();
         }
 
@@ -93,8 +72,6 @@ namespace AccesClientWPF.Views
                 {
                     var jsonData = File.ReadAllText(_jsonFilePath);
                     var database = JsonConvert.DeserializeObject<DatabaseModel>(jsonData);
-
-                    // Nettoyage des éléments null et chargement des fichiers
                     _files = new ObservableCollection<FileModel>(
                         database?.Files?.Where(f => f != null && !string.IsNullOrWhiteSpace(f.Name))
                         ?? new ObservableCollection<FileModel>());
@@ -120,7 +97,6 @@ namespace AccesClientWPF.Views
                     Clients = _clients,
                     Files = _files
                 };
-
                 File.WriteAllText(_jsonFilePath, JsonConvert.SerializeObject(database, Formatting.Indented));
             }
             catch (Exception ex)
@@ -132,23 +108,77 @@ namespace AccesClientWPF.Views
         private void AddClient_Click(object sender, RoutedEventArgs e)
         {
             string clientName = TxtClientName.Text.Trim();
+            string acronym = TxtAcronym.Text.Trim().ToUpper();
 
-            if (!string.IsNullOrWhiteSpace(clientName))
+            if (string.IsNullOrWhiteSpace(clientName))
             {
-                if (!_clients.Any(c => c.Name.Equals(clientName, StringComparison.OrdinalIgnoreCase)))
+                MessageBox.Show("Veuillez saisir un nom de client valide.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (acronym.Length > 3)
+            {
+                MessageBox.Show("L'acronyme ne doit pas dépasser 3 caractères.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            if (_clients.Any(c => c.Name.Equals(clientName, StringComparison.OrdinalIgnoreCase)))
+            {
+                MessageBox.Show("Un client avec ce nom existe déjà.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                return;
+            }
+
+            _clients.Add(new ClientModel { Name = clientName, Acronym = acronym });
+            TxtClientName.Clear();
+            TxtAcronym.Clear();
+            SaveData();
+        }
+
+        private void OpenClientFolder_Click(object sender, RoutedEventArgs e)
+        {
+            if (sender is not Button btn || btn.Tag is not string acronym || string.IsNullOrWhiteSpace(acronym))
+            {
+                MessageBox.Show("Aucun acronyme défini pour ce client.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
+                return;
+            }
+
+            try
+            {
+                if (!Directory.Exists(BaseFolderPath))
                 {
-                    _clients.Add(new ClientModel { Name = clientName });
-                    TxtClientName.Clear();
-                    SaveData();
+                    MessageBox.Show($"Le chemin réseau '{BaseFolderPath}' est inaccessible.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                    return;
+                }
+
+                var matchingDir = Directory.GetDirectories(BaseFolderPath)
+                    .Select(d => new DirectoryInfo(d))
+                    .FirstOrDefault(d =>
+                    {
+                        var name = d.Name;
+                        var parenStart = name.LastIndexOf('(');
+                        var parenEnd = name.LastIndexOf(')');
+                        if (parenStart < 0 || parenEnd <= parenStart) return false;
+                        var code = name.Substring(parenStart + 1, parenEnd - parenStart - 1).Trim();
+                        return code.Equals(acronym, StringComparison.OrdinalIgnoreCase);
+                    });
+
+                if (matchingDir != null)
+                {
+                    Process.Start(new ProcessStartInfo
+                    {
+                        FileName = "explorer.exe",
+                        Arguments = $"\"{matchingDir.FullName}\"",
+                        UseShellExecute = true
+                    });
                 }
                 else
                 {
-                    MessageBox.Show("Un client avec ce nom existe déjà.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                    MessageBox.Show($"Aucun dossier trouvé pour l'acronyme '{acronym}'.", "Information", MessageBoxButton.OK, MessageBoxImage.Information);
                 }
             }
-            else
+            catch (Exception ex)
             {
-                MessageBox.Show("Veuillez saisir un nom de client valide.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+                MessageBox.Show($"Erreur lors de l'ouverture du dossier : {ex.Message}", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -182,7 +212,6 @@ namespace AccesClientWPF.Views
             }
         }
 
-
         private void DeleteClient_Click(object sender, RoutedEventArgs e)
         {
             if (LstClients.SelectedItem is ClientModel client)
@@ -192,12 +221,8 @@ namespace AccesClientWPF.Views
                     .ToList();
 
                 if (clientFiles != null)
-                {
                     foreach (var file in clientFiles)
-                    {
                         _files.Remove(file);
-                    }
-                }
 
                 _clients.Remove(client);
                 SaveData();
@@ -205,6 +230,22 @@ namespace AccesClientWPF.Views
             else
             {
                 MessageBox.Show("Veuillez sélectionner un client à supprimer.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
+
+        private void EditClient_Click(object sender, RoutedEventArgs e)
+        {
+            if (LstClients.SelectedItem is ClientModel selectedClient)
+            {
+                var editWindow = new EditClientWindow(selectedClient, _clients);
+                if (editWindow.ShowDialog() == true)
+                {
+                    SaveData();
+                }
+            }
+            else
+            {
+                MessageBox.Show("Veuillez sélectionner un client à modifier.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
             }
         }
 
@@ -222,7 +263,7 @@ namespace AccesClientWPF.Views
                 if (index > 0)
                 {
                     _clients.Move(index, index - 1);
-                    LstClients.SelectedItem = selectedClient; // Garder la sélection active
+                    LstClients.SelectedItem = selectedClient;
                     SaveData();
                 }
             }
@@ -240,7 +281,7 @@ namespace AccesClientWPF.Views
                 if (index < _clients.Count - 1)
                 {
                     _clients.Move(index, index + 1);
-                    LstClients.SelectedItem = selectedClient; // Garder la sélection active
+                    LstClients.SelectedItem = selectedClient;
                     SaveData();
                 }
             }

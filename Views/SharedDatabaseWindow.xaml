@@ -6,142 +6,130 @@
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
         Title="{Binding WindowTitle}"
         Height="850" Width="1300"
-        Background="#EAEDED"
+        Background="{StaticResource WindowBackgroundBrush}"
         WindowStartupLocation="CenterScreen">
 
     <Window.Resources>
-        <conv:FileTypeToIconConverter x:Key="FileTypeToIconConverter"/>
-        <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
-        <conv:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibilityConverter"/>
-        <conv:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
-        <conv:DecryptPasswordConverter x:Key="DecryptPasswordConverter"/>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Resources/FluentTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <conv:FileTypeToIconConverter x:Key="FileTypeToIconConverter"/>
+            <conv:StringToVisibilityConverter x:Key="StringToVisibilityConverter"/>
+            <conv:NullOrEmptyToVisibilityConverter x:Key="NullOrEmptyToVisibilityConverter"/>
+            <conv:InverseBooleanToVisibilityConverter x:Key="InverseBooleanToVisibilityConverter"/>
+            <conv:DecryptPasswordConverter x:Key="DecryptPasswordConverter"/>
+            <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
 
-        <BooleanToVisibilityConverter x:Key="BooleanToVisibilityConverter"/>
+            <Style x:Key="CopyButton" TargetType="Button">
+                <Setter Property="Background" Value="{StaticResource FluentCardBrush}"/>
+                <Setter Property="BorderBrush" Value="{StaticResource DarkBorderBrush}"/>
+                <Setter Property="BorderThickness" Value="1"/>
+                <Setter Property="Cursor" Value="Hand"/>
+                <Setter Property="Padding" Value="2"/>
+                <Setter Property="Template">
+                    <Setter.Value>
+                        <ControlTemplate TargetType="Button">
+                            <Border Background="{TemplateBinding Background}" CornerRadius="6"
+                                    BorderThickness="{TemplateBinding BorderThickness}"
+                                    BorderBrush="{TemplateBinding BorderBrush}">
+                                <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
+                            </Border>
+                        </ControlTemplate>
+                    </Setter.Value>
+                </Setter>
+            </Style>
 
-        <Style x:Key="RoundedButton" TargetType="Button">
-            <Setter Property="Background" Value="#5DADE2"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="HorizontalContentAlignment" Value="Left"/>
-            <Setter Property="Padding" Value="16,10"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}"
-                        CornerRadius="8"
-                        Padding="{TemplateBinding Padding}"
-                        BorderBrush="Transparent">
-                            <ContentPresenter HorizontalAlignment="{TemplateBinding HorizontalContentAlignment}"
-                                      VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+            <Style x:Key="ContextMenuItemStyle" TargetType="MenuItem">
+                <Setter Property="Padding" Value="8,4"/>
+                <Setter Property="FontSize" Value="13"/>
+                <Setter Property="FontFamily" Value="{StaticResource FluentFont}"/>
+            </Style>
 
-        <Style x:Key="CopyButton" TargetType="Button">
-            <Setter Property="Background" Value="#F8F9F9"/>
-            <Setter Property="BorderBrush" Value="#AEB6BF"/>
-            <Setter Property="BorderThickness" Value="1"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Padding" Value="2"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="3"
-                                BorderThickness="{TemplateBinding BorderThickness}"
-                                BorderBrush="{TemplateBinding BorderBrush}">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+            <DataTemplate x:Key="SharedFileItemTemplate">
+                <Grid Margin="6,3" Height="34">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="28"/>
+                        <ColumnDefinition Width="*"/>
+                    </Grid.ColumnDefinitions>
 
-        <Style x:Key="ContextMenuItemStyle" TargetType="MenuItem">
-            <Setter Property="Padding" Value="8,4"/>
-            <Setter Property="FontSize" Value="13"/>
-        </Style>
-        <DataTemplate x:Key="SharedFileItemTemplate">
-            <Grid Margin="6,3" Height="34">
-                <Grid.ColumnDefinitions>
-                    <ColumnDefinition Width="28"/>
-                    <ColumnDefinition Width="*"/>
-                </Grid.ColumnDefinitions>
+                    <Image Width="18" Height="18"
+                       VerticalAlignment="Center"
+                       Source="{Binding Converter={StaticResource FileTypeToIconConverter}}"/>
 
-                <Image Width="18" Height="18"
-                   VerticalAlignment="Center"
-                   Source="{Binding Converter={StaticResource FileTypeToIconConverter}}"/>
-
-                <TextBlock Grid.Column="1"
+                    <TextBlock Grid.Column="1"
                        VerticalAlignment="Center"
                        Text="{Binding Name}"
                        FontWeight="SemiBold"
-                       Foreground="#2C3E50"
+                       Foreground="{StaticResource DarkTextBrush}"
                        TextTrimming="CharacterEllipsis"/>
-            </Grid>
-        </DataTemplate>
-        <DataTemplate x:Key="CardTemplate">
-            <Border CornerRadius="10" Background="#FDFEFE" Padding="10" Margin="5">
-                <StackPanel>
-                    <Grid>
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="80"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                </Grid>
+            </DataTemplate>
 
-                        <Border Grid.Column="0" Background="#EAEDED" Padding="5" CornerRadius="8"
-                        Margin="0,0,15,0" Width="70" Height="70">
-                            <Image Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality">
-                                <Image.Source>
-                                    <Binding Path="." Converter="{StaticResource FileTypeToIconConverter}"/>
-                                </Image.Source>
-                            </Image>
-                        </Border>
+            <DataTemplate x:Key="CardTemplate">
+                <Border CornerRadius="10" Background="{StaticResource FluentCardBrush}" Padding="10" Margin="5" BorderBrush="{StaticResource LightBorderBrush}" BorderThickness="1">
+                    <StackPanel>
+                        <Grid>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="80"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <TextBlock Grid.Column="1"
-                           Text="{Binding Name}"
-                           VerticalAlignment="Center"
-                           FontSize="16"
-                           FontWeight="Bold"
-                           Foreground="#2C3E50"/>
+                            <Border Grid.Column="0" Background="{StaticResource LightGrayBrush}" Padding="5" CornerRadius="8"
+                            Margin="0,0,15,0" Width="70" Height="70">
+                                <Image Width="56" Height="56" RenderOptions.BitmapScalingMode="HighQuality">
+                                    <Image.Source>
+                                        <Binding Path="." Converter="{StaticResource FileTypeToIconConverter}"/>
+                                    </Image.Source>
+                                </Image>
+                            </Border>
 
-                        <TextBlock Grid.Column="2"
-                           Text="{Binding Type}"
-                           VerticalAlignment="Center"
-                           FontSize="13"
-                           Foreground="#7F8C8D"
-                           Margin="10,0,0,0"/>
-                    </Grid>
+                            <TextBlock Grid.Column="1"
+                               Text="{Binding Name}"
+                               VerticalAlignment="Center"
+                               FontSize="16"
+                               FontWeight="Bold"
+                               Foreground="{StaticResource FluentTextPrimaryBrush}"
+                               FontFamily="{StaticResource FluentFont}"/>
 
-                    <!-- AnyDesk (si tu as les converters/commands comme Main) -->
-                    <Grid Visibility="{Binding Type, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=AnyDesk}"
+                            <TextBlock Grid.Column="2"
+                               Text="{Binding Type}"
+                               VerticalAlignment="Center"
+                               FontSize="13"
+                               Foreground="{StaticResource FluentTextSecondaryBrush}"
+                               Margin="10,0,0,0"
+                               FontFamily="{StaticResource FluentFont}"/>
+                        </Grid>
+
+                        <!-- AnyDesk -->
+                        <Grid Visibility="{Binding Type, Converter={StaticResource StringToVisibilityConverter}, ConverterParameter=AnyDesk}"
                   Margin="80,5,0,0">
-                        <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="*"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                            <ColumnDefinition Width="Auto"/>
-                        </Grid.ColumnDefinitions>
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="*"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                                <ColumnDefinition Width="Auto"/>
+                            </Grid.ColumnDefinitions>
 
-                        <StackPanel Grid.Column="0" Orientation="Horizontal"
+                            <StackPanel Grid.Column="0" Orientation="Horizontal"
                             Visibility="{Binding WindowsUsername, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
-                            <TextBlock Text="Utilisateur Windows:"
+                                <TextBlock Text="Utilisateur Windows:"
                                VerticalAlignment="Center"
                                FontSize="12"
                                FontWeight="Bold"
-                               Foreground="#34495E"/>
-                            <TextBlock Text="{Binding WindowsUsername}"
+                               Foreground="{StaticResource FluentTextPrimaryBrush}"
+                               FontFamily="{StaticResource FluentFont}"/>
+                                <TextBlock Text="{Binding WindowsUsername}"
                                VerticalAlignment="Center"
                                FontSize="12"
-                               Foreground="#34495E"
+                               Foreground="{StaticResource FluentTextPrimaryBrush}"
                                Margin="5,0,5,0"
+                               FontFamily="{StaticResource FluentFont}"
                                Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}"/>
-                            <Button Content="📋"
+                                <Button Content="📋"
                             Width="25"
                             Height="25"
                             Margin="2"
@@ -149,25 +137,27 @@
                             Command="{Binding DataContext.CopyUsernameCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             CommandParameter="{Binding WindowsUsername}"
                             Style="{StaticResource CopyButton}"/>
-                        </StackPanel>
+                            </StackPanel>
 
-                        <StackPanel Grid.Column="2"
+                            <StackPanel Grid.Column="2"
                             Orientation="Horizontal"
                             Margin="15,0,0,0"
                             Visibility="{Binding WindowsPassword, Converter={StaticResource NullOrEmptyToVisibilityConverter}}">
-                            <TextBlock Text="Mot de passe Windows:"
+                                <TextBlock Text="Mot de passe Windows:"
                                VerticalAlignment="Center"
                                FontSize="12"
                                FontWeight="Bold"
-                               Foreground="#34495E"/>
-                            <TextBlock VerticalAlignment="Center"
+                               Foreground="{StaticResource FluentTextPrimaryBrush}"
+                               FontFamily="{StaticResource FluentFont}"/>
+                                <TextBlock VerticalAlignment="Center"
                                FontSize="12"
-                               Foreground="#34495E"
+                               Foreground="{StaticResource FluentTextPrimaryBrush}"
                                Margin="5,0,5,0"
+                               FontFamily="{StaticResource FluentFont}"
                                Visibility="{Binding DataContext.ShowCredentials, RelativeSource={RelativeSource AncestorType=Window}, Converter={StaticResource BooleanToVisibilityConverter}}">
                         <Run Text="{Binding WindowsPassword, Converter={StaticResource DecryptPasswordConverter}, Mode=OneWay}"/>
-                            </TextBlock>
-                            <Button Content="📋"
+                                </TextBlock>
+                                <Button Content="📋"
                             Width="25"
                             Height="25"
                             Margin="5,0,0,0"
@@ -175,103 +165,131 @@
                             Command="{Binding DataContext.CopyPasswordCommand, RelativeSource={RelativeSource AncestorType=Window}}"
                             CommandParameter="{Binding WindowsPassword}"
                             Style="{StaticResource CopyButton}"/>
-                        </StackPanel>
-                    </Grid>
+                            </StackPanel>
+                        </Grid>
 
-                </StackPanel>
-            </Border>
-        </DataTemplate>
+                    </StackPanel>
+                </Border>
+            </DataTemplate>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid>
         <Grid.ColumnDefinitions>
             <ColumnDefinition Width="300"/>
-            <!-- Gauche -->
             <ColumnDefinition Width="*"/>
-            <!-- Centre -->
             <ColumnDefinition Width="360"/>
-            <!-- Droite -->
         </Grid.ColumnDefinitions>
 
         <!-- Colonne gauche -->
-
-        <Border Grid.Column="0" Background="#34495E" Padding="10" CornerRadius="8" Margin="10,20,10,20">
+        <Border Grid.Column="0" Background="{StaticResource FluentSidebarBrush}" Padding="10" CornerRadius="8" Margin="10,20,10,20">
             <DockPanel Width="253">
-                    <TextBlock Text="Clients" FontSize="18" FontWeight="Bold" Foreground="White" Margin="5" DockPanel.Dock="Top"/>
+                <TextBlock Text="Clients" FontSize="18" FontWeight="Bold" Foreground="{StaticResource FluentTextOnDarkBrush}" Margin="5" DockPanel.Dock="Top" FontFamily="{StaticResource FluentFont}"/>
 
-                    <StackPanel DockPanel.Dock="Bottom">
-                        <Button Content="Gérer les clients" Click="ManageClientsCommand_Click"
-                                Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+                <StackPanel DockPanel.Dock="Bottom">
+                    <Button Content="Gérer les clients" Click="ManageClientsCommand_Click"
+                            Margin="10,5" Height="45" Style="{StaticResource FluentButton}"/>
 
-                        <Button Content="Créer un nouveau fichier" Click="CreateNewDatabase_Click"
-                                Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+                    <Button Content="Créer un nouveau fichier" Click="CreateNewDatabase_Click"
+                            Margin="10,5" Height="45" Style="{StaticResource FluentButton}"/>
 
-                        <Button Content="Ouvrir base partagée" Click="OpenSharedDatabase_Click"
-                                Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+                    <Button Content="Ouvrir base partagée" Click="OpenSharedDatabase_Click"
+                            Margin="10,5" Height="45" Style="{StaticResource FluentButton}"/>
 
-                        <Button Content="Importer vers base principale" Click="ImportToMainDatabase_Click"
-                                Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+                    <Button Content="Importer vers base principale" Click="ImportToMainDatabase_Click"
+                            Margin="10,5" Height="45" Style="{StaticResource FluentButton}"/>
 
-                        <Button x:Name="BtnSave" Content="Sauvegarder" Click="SaveSharedDatabase_Click"
-                                Margin="10,5" Height="45" Style="{StaticResource RoundedButton}"/>
+                    <Button x:Name="BtnSave" Content="Sauvegarder" Click="SaveSharedDatabase_Click"
+                            Margin="10,5" Height="45" Style="{StaticResource FluentButton}"/>
 
-                        <Button x:Name="BtnCancel" Content="Quitter (perdu si non sauvegardé)" Click="CancelAndClose_Click"
-                                Margin="10,5,10,10" Height="45" Style="{StaticResource RoundedButton}"/>
-                    </StackPanel>
+                    <Button x:Name="BtnCancel" Content="Quitter (perdu si non sauvegardé)" Click="CancelAndClose_Click"
+                            Margin="10,5,10,10" Height="45" Style="{StaticResource FluentButton}"/>
+                </StackPanel>
 
-                    <ListBox ItemsSource="{Binding Clients}" DisplayMemberPath="Name"
-                             SelectedItem="{Binding SelectedClient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
-                             Background="#D5DBDB" BorderThickness="0" Padding="5" Margin="0,5"
-                             VerticalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto"/>
-                </DockPanel>
-            </Border>
+                <ListBox ItemsSource="{Binding Clients}"
+         SelectedItem="{Binding SelectedClient, Mode=TwoWay, UpdateSourceTrigger=PropertyChanged}"
+         Background="{StaticResource DarkListBackgroundBrush}" BorderThickness="0" Padding="5" Margin="0,5"
+         VerticalAlignment="Stretch" ScrollViewer.VerticalScrollBarVisibility="Auto">
+                    <ListBox.ItemContainerStyle>
+                        <Style TargetType="ListBoxItem">
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="1"/>
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListBoxItem">
+                                        <Border x:Name="Bd" Background="Transparent"
+                                CornerRadius="6" Padding="6,4">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource DarkHoverBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource FluentBrandBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListBox.ItemContainerStyle>
+                    <ListBox.ItemTemplate>
+                        <DataTemplate>
+                            <TextBlock Text="{Binding Name}"
+                       Foreground="{StaticResource FluentTextOnDarkBrush}"
+                       FontSize="12.5"
+                       FontFamily="{StaticResource FluentFont}"
+                       VerticalAlignment="Center"
+                       TextTrimming="CharacterEllipsis"/>
+                        </DataTemplate>
+                    </ListBox.ItemTemplate>
+                </ListBox>
+            </DockPanel>
+        </Border>
 
-        <!-- contenu principal centre -->
+        <!-- Contenu principal centre -->
         <ScrollViewer Grid.Column="1" x:Name="MainScrollViewer" Margin="0,20,0,20"
                           VerticalScrollBarVisibility="Auto"
                           PreviewMouseWheel="MainScrollViewer_PreviewMouseWheel">
-                <StackPanel>
-                    <StackPanel Orientation="Horizontal" Margin="10">
-                        <CheckBox Content="Afficher les identifiants"
-                                  IsChecked="{Binding ShowCredentials, Mode=TwoWay}"/>
-                    </StackPanel>
+            <StackPanel>
+                <StackPanel Orientation="Horizontal" Margin="10">
+                    <CheckBox Content="Afficher les identifiants"
+                              IsChecked="{Binding ShowCredentials, Mode=TwoWay}"
+                              FontFamily="{StaticResource FluentFont}"
+                              Foreground="{StaticResource FluentTextPrimaryBrush}"/>
+                </StackPanel>
 
-                    <Border Background="#34495E" Margin="10,5,10,10" Padding="15,10" CornerRadius="8">
-                        <Grid>
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*"/>
-                                <ColumnDefinition Width="Auto"/>
-                            </Grid.ColumnDefinitions>
-
-                            <TextBlock Grid.Column="0" Text="{Binding SelectedClient.Name}"
-                                       FontSize="20" FontWeight="Bold" Foreground="White"
-                                       HorizontalAlignment="Center"/>
-
-                            <Button Grid.Column="1"
-                                    Content="+ Ajouter"
-                                    Click="AddButton_Click"
-                                    Style="{StaticResource RoundedButton}"
-                                    Background="#2ECC71"
-                                    Foreground="White"
-                                    Padding="8,3"
-                                    Margin="5,0,10,0"/>
-                        </Grid>
-                    </Border>
-
-                    <!-- ========================= -->
-                    <!--        CENTRE             -->
-                    <!--  1 LISTE OU SPLIT         -->
-                    <!--  (Copie conforme Main)    -->
-                    <!-- ========================= -->
-                    <Grid Margin="10,0,10,10">
+                <Border Background="{StaticResource FluentSidebarBrush}" Margin="10,5,10,10" Padding="15,10" CornerRadius="8">
+                    <Grid>
                         <Grid.ColumnDefinitions>
-                            <ColumnDefinition Width="*" />
-                            <ColumnDefinition Width="10" />
-                            <ColumnDefinition Width="*" />
+                            <ColumnDefinition Width="*"/>
+                            <ColumnDefinition Width="Auto"/>
                         </Grid.ColumnDefinitions>
 
-                        <!-- MODE CLASSIQUE -->
-                        <ListView Name="FileListSingle"
+                        <TextBlock Grid.Column="0" Text="{Binding SelectedClient.Name}"
+                                   FontSize="20" FontWeight="Bold" Foreground="{StaticResource FluentTextOnDarkBrush}"
+                                   HorizontalAlignment="Center" FontFamily="{StaticResource FluentFont}"/>
+
+                        <Button Grid.Column="1"
+                                Content="+ Ajouter"
+                                Click="AddButton_Click"
+                                Style="{StaticResource FluentButton}"
+                                Margin="5,0,10,0"/>
+                    </Grid>
+                </Border>
+
+                <!-- CENTRE -->
+                <Grid Margin="10,0,10,10">
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*" />
+                        <ColumnDefinition Width="10" />
+                        <ColumnDefinition Width="*" />
+                    </Grid.ColumnDefinitions>
+
+                    <!-- MODE CLASSIQUE -->
+                    <ListView Name="FileListSingle"
           Grid.ColumnSpan="3"
           ItemsSource="{Binding FilteredFiles}"
           SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
@@ -284,76 +302,75 @@
           Visibility="{Binding HasLevel2, Converter={StaticResource InverseBooleanToVisibilityConverter}}"
           ItemTemplate="{StaticResource CardTemplate}">
 
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ListView.ItemContainerStyle>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListView.ItemContainerStyle>
 
-                            <ListView.ContextMenu>
-                                <ContextMenu Opened="ElementsContextMenu_Opened">
-                                    <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                        <ListView.ContextMenu>
+                            <ContextMenu Opened="ElementsContextMenu_Opened">
+                                <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
                       Fill="#2ECC71" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                       Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                                <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
                       Fill="#E74C3C" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Tester" Click="TestConnectionMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <!-- Cible orange propre -->
-                                            <Canvas Width="16" Height="16">
-                                                <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1"
+                                <MenuItem Header="Tester" Click="TestConnectionMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Canvas Width="16" Height="16">
+                                            <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1"
                      Stroke="#F39C12" StrokeThickness="2" Fill="Transparent"/>
-                                                <Ellipse Width="8" Height="8" Canvas.Left="4" Canvas.Top="4"
+                                            <Ellipse Width="8" Height="8" Canvas.Left="4" Canvas.Top="4"
                      Stroke="#F39C12" StrokeThickness="2" Fill="Transparent"/>
-                                                <Ellipse Width="2" Height="2" Canvas.Left="7" Canvas.Top="7"
+                                            <Ellipse Width="2" Height="2" Canvas.Left="7" Canvas.Top="7"
                      Fill="#F39C12"/>
-                                            </Canvas>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                        </Canvas>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <Separator/>
+                                <Separator/>
 
-                                    <MenuItem Header="Aller vers Racine" Tag="GoRoot" Click="MoveToRoot_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
+                                <MenuItem Header="Aller vers Racine" Tag="GoRoot" Click="MoveToRoot_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
                       Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Aller vers..." Tag="GoTo" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M10,17L15,12L10,7V17Z"
+                                <MenuItem Header="Aller vers..." Tag="GoTo" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M10,17L15,12L10,7V17Z"
                       Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
-                                </ContextMenu>
-                            </ListView.ContextMenu>
-                        </ListView>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </ListView.ContextMenu>
+                    </ListView>
 
-                        <!-- MODE SPLIT : GAUCHE (RACINE) -->
-                        <ListView Name="FileListRoot"
+                    <!-- MODE SPLIT : GAUCHE (RACINE) -->
+                    <ListView Name="FileListRoot"
           Grid.Column="0"
           ItemsSource="{Binding RootFiles}"
           SelectedItem="{Binding SelectedRootItem, Mode=TwoWay}"
@@ -364,83 +381,82 @@
           HorizontalContentAlignment="Stretch"
           Visibility="{Binding HasLevel2, Converter={StaticResource BooleanToVisibilityConverter}}"
           ItemTemplate="{StaticResource CardTemplate}">
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ListView.ItemContainerStyle>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListView.ItemContainerStyle>
 
-                            <ListView.ContextMenu>
-                                <ContextMenu Opened="ElementsContextMenu_Opened">
-                                    <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                        <ListView.ContextMenu>
+                            <ContextMenu Opened="ElementsContextMenu_Opened">
+                                <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
                       Fill="#2ECC71" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                       Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                                <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
                       Fill="#E74C3C" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Tester" Click="TestConnectionMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <!-- Cible orange propre -->
-                                            <Canvas Width="16" Height="16">
-                                                <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1"
+                                <MenuItem Header="Tester" Click="TestConnectionMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Canvas Width="16" Height="16">
+                                            <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1"
                      Stroke="#F39C12" StrokeThickness="2" Fill="Transparent"/>
-                                                <Ellipse Width="8" Height="8" Canvas.Left="4" Canvas.Top="4"
+                                            <Ellipse Width="8" Height="8" Canvas.Left="4" Canvas.Top="4"
                      Stroke="#F39C12" StrokeThickness="2" Fill="Transparent"/>
-                                                <Ellipse Width="2" Height="2" Canvas.Left="7" Canvas.Top="7"
+                                            <Ellipse Width="2" Height="2" Canvas.Left="7" Canvas.Top="7"
                      Fill="#F39C12"/>
-                                            </Canvas>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                        </Canvas>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <Separator/>
+                                <Separator/>
 
-                                    <MenuItem Header="Aller vers Racine" Tag="GoRoot" Click="MoveToRoot_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
+                                <MenuItem Header="Aller vers Racine" Tag="GoRoot" Click="MoveToRoot_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
                       Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Aller vers..." Tag="GoTo" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M10,17L15,12L10,7V17Z"
+                                <MenuItem Header="Aller vers..." Tag="GoTo" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M10,17L15,12L10,7V17Z"
                       Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
-                                </ContextMenu>
-                            </ListView.ContextMenu>
-                        </ListView>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </ListView.ContextMenu>
+                    </ListView>
 
-                        <GridSplitter Grid.Column="1"
+                    <GridSplitter Grid.Column="1"
                   Width="10"
                   Background="Transparent"
                   HorizontalAlignment="Stretch"
                   VerticalAlignment="Stretch"
                   Visibility="{Binding HasLevel2, Converter={StaticResource BooleanToVisibilityConverter}}" />
 
-                        <!-- MODE SPLIT : DROITE (NIVEAU 2) -->
-                        <ListView Name="FileListLevel2"
+                    <!-- MODE SPLIT : DROITE (NIVEAU 2) -->
+                    <ListView Name="FileListLevel2"
           Grid.Column="2"
           ItemsSource="{Binding Level2Files}"
           SelectedItem="{Binding SelectedFile, Mode=TwoWay}"
@@ -452,82 +468,81 @@
           Visibility="{Binding HasLevel2, Converter={StaticResource BooleanToVisibilityConverter}}"
           ItemTemplate="{StaticResource CardTemplate}">
 
-                            <ListView.ItemContainerStyle>
-                                <Style TargetType="ListViewItem">
-                                    <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
-                                    <Setter Property="Visibility" Value="Visible"/>
-                                    <Style.Triggers>
-                                        <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
-                                            <Setter Property="Visibility" Value="Collapsed"/>
-                                        </DataTrigger>
-                                    </Style.Triggers>
-                                </Style>
-                            </ListView.ItemContainerStyle>
+                        <ListView.ItemContainerStyle>
+                            <Style TargetType="ListViewItem">
+                                <EventSetter Event="PreviewMouseRightButtonDown" Handler="ListViewItem_PreviewMouseRightButtonDown"/>
+                                <Setter Property="Visibility" Value="Visible"/>
+                                <Style.Triggers>
+                                    <DataTrigger Binding="{Binding Type}" Value="MotDePasse">
+                                        <Setter Property="Visibility" Value="Collapsed"/>
+                                    </DataTrigger>
+                                </Style.Triggers>
+                            </Style>
+                        </ListView.ItemContainerStyle>
 
-                            <ListView.ContextMenu>
-                                <ContextMenu Opened="ElementsContextMenu_Opened">
-                                    <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
+                        <ListView.ContextMenu>
+                            <ContextMenu Opened="ElementsContextMenu_Opened">
+                                <MenuItem Header="Ajouter un élément" Click="AddContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M19,13H13V19H11V13H5V11H11V5H13V11H19V13Z"
                       Fill="#2ECC71" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
+                                <MenuItem Header="Modifier cet élément" Click="EditContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25ZM20.71,7.04C21.1,6.65 21.1,6 20.71,5.63L18.37,3.29C18,2.9 17.35,2.9 16.96,3.29L15.12,5.12L18.87,8.87M3,17.25V21H6.75L17.81,9.93L14.06,6.18L3,17.25Z"
                       Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
+                                <MenuItem Header="Supprimer cet élément" Click="DeleteContextMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M19,4H15.5L14.5,3H9.5L8.5,4H5V6H19M6,19A2,2 0 0,0 8,21H16A2,2 0 0,0 18,19V7H6V19Z"
                       Fill="#E74C3C" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Tester" Click="TestConnectionMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <!-- Cible orange propre -->
-                                            <Canvas Width="16" Height="16">
-                                                <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1"
+                                <MenuItem Header="Tester" Click="TestConnectionMenu_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Canvas Width="16" Height="16">
+                                            <Ellipse Width="14" Height="14" Canvas.Left="1" Canvas.Top="1"
                      Stroke="#F39C12" StrokeThickness="2" Fill="Transparent"/>
-                                                <Ellipse Width="8" Height="8" Canvas.Left="4" Canvas.Top="4"
+                                            <Ellipse Width="8" Height="8" Canvas.Left="4" Canvas.Top="4"
                      Stroke="#F39C12" StrokeThickness="2" Fill="Transparent"/>
-                                                <Ellipse Width="2" Height="2" Canvas.Left="7" Canvas.Top="7"
+                                            <Ellipse Width="2" Height="2" Canvas.Left="7" Canvas.Top="7"
                      Fill="#F39C12"/>
-                                            </Canvas>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                        </Canvas>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <Separator/>
+                                <Separator/>
 
-                                    <MenuItem Header="Aller vers Racine" Tag="GoRoot" Click="MoveToRoot_Click" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
+                                <MenuItem Header="Aller vers Racine" Tag="GoRoot" Click="MoveToRoot_Click" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M10,20V14H14V20H19V12H22L12,3L2,12H5V20H10Z"
                       Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
+                                    </MenuItem.Icon>
+                                </MenuItem>
 
-                                    <MenuItem Header="Aller vers..." Tag="GoTo" Style="{StaticResource ContextMenuItemStyle}">
-                                        <MenuItem.Icon>
-                                            <Path Data="M10,17L15,12L10,7V17Z"
+                                <MenuItem Header="Aller vers..." Tag="GoTo" Style="{StaticResource ContextMenuItemStyle}">
+                                    <MenuItem.Icon>
+                                        <Path Data="M10,17L15,12L10,7V17Z"
                       Fill="#5DADE2" Stretch="Uniform" Width="16" Height="16"/>
-                                        </MenuItem.Icon>
-                                    </MenuItem>
-                                </ContextMenu>
-                            </ListView.ContextMenu>
-                        </ListView>
-                    </Grid>
-                </StackPanel>
-            </ScrollViewer>
+                                    </MenuItem.Icon>
+                                </MenuItem>
+                            </ContextMenu>
+                        </ListView.ContextMenu>
+                    </ListView>
+                </Grid>
+            </StackPanel>
+        </ScrollViewer>
 
-            <!-- Colonne droite — mots de passe supplémentaires (toujours visible) -->
+        <!-- Colonne droite — mots de passe supplémentaires -->
         <Border Grid.Column="2"
         x:Name="RightPanel"
-        Background="#FDF6E3"
-        BorderBrush="#D5DBDB"
+        Background="{StaticResource CreamBrush}"
+        BorderBrush="{StaticResource CardBorderBrush}"
         BorderThickness="1"
         CornerRadius="12"
         Padding="20"
@@ -538,11 +553,12 @@
                 <!-- En-tête -->
                 <DockPanel DockPanel.Dock="Top" LastChildFill="True" Margin="0,0,0,12">
                     <TextBlock Text="Mots de passe supplémentaires"
-                       FontSize="13" FontWeight="Bold" Foreground="#34495E"
+                       FontSize="13" FontWeight="Bold" Foreground="{StaticResource MediumTextBrush}"
                        VerticalAlignment="Center"
                        Margin="0,0,12,0"
                        TextWrapping="NoWrap"
-                       TextTrimming="CharacterEllipsis"/>
+                       TextTrimming="CharacterEllipsis"
+                       FontFamily="{StaticResource FluentFont}"/>
 
                     <Button Content="+ Ajout"
                     DockPanel.Dock="Right"
@@ -569,7 +585,8 @@
 
                         <!-- Message si liste vide -->
                         <TextBlock Text="Aucun mot de passe pour ce client."
-                           Foreground="#7F8C8D" Margin="0,0,0,10">
+                           Foreground="{StaticResource LightTextBrush}" Margin="0,0,0,10"
+                           FontFamily="{StaticResource FluentFont}">
                             <TextBlock.Style>
                                 <Style TargetType="TextBlock">
                                     <Setter Property="Visibility" Value="Collapsed"/>
@@ -587,19 +604,20 @@
                             <ItemsControl.ItemTemplate>
                                 <DataTemplate>
                                     <Border Padding="10" Margin="0,0,0,10"
-              Background="#FFFFFF" CornerRadius="8"
-              BorderBrush="#ECECEC" BorderThickness="1"
+              Background="{StaticResource FluentCardBrush}" CornerRadius="8"
+              BorderBrush="{StaticResource VeryLightBorderBrush}" BorderThickness="1"
               Tag="{Binding DataContext, ElementName=Root}">
-                                        <!-- Menu contextuel : DataContext = ViewModel, Paramètre = item (FileModel) -->
+                                        <!-- Menu contextuel -->
                                         <Border.ContextMenu>
                                             <ContextMenu DataContext="{Binding PlacementTarget.Tag, RelativeSource={RelativeSource Self}}">
                                                 <!-- Modifier -->
                                                 <MenuItem Header="Modifier"
-                      Command="{Binding EditPasswordCommand}"
-                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+    Command="{Binding EditPasswordCommand}"
+    CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+    Style="{StaticResource ContextMenuItemStyle}">
                                                     <MenuItem.Icon>
                                                         <Path Data="M20,6 18,4 4,18 4,22 8,22Z"
-                      Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
+            Fill="#F39C12" Stretch="Uniform" Width="16" Height="16"/>
                                                     </MenuItem.Icon>
                                                 </MenuItem>
 
@@ -624,7 +642,8 @@
                                                 <!-- Supprimer -->
                                                 <MenuItem Header="Supprimer" Foreground="#E74C3C"
                       Command="{Binding DeletePasswordCommand}"
-                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}">
+                      CommandParameter="{Binding PlacementTarget.DataContext, RelativeSource={RelativeSource AncestorType=ContextMenu}}"
+                      Style="{StaticResource ContextMenuItemStyle}">
                                                     <MenuItem.Icon>
                                                         <Path Data="M6,19 8,21 16,21 18,19 18,7 6,7 6,19Z M5,6 19,6 19,4 15.5,4 14.5,3 9.5,3 8.5,4 5,4Z"
                       Fill="#E74C3C" Stretch="Uniform" Width="16" Height="16"/>
@@ -635,7 +654,7 @@
 
                                         <!-- Contenu -->
                                         <StackPanel>
-                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="15" Foreground="#2C3E50"/>
+                                            <TextBlock Text="{Binding Name}" FontWeight="Bold" FontSize="15" Foreground="{StaticResource DarkTextBrush}" FontFamily="{StaticResource FluentFont}"/>
 
                                             <Grid Margin="0,6,0,2">
                                                 <Grid.ColumnDefinitions>
@@ -644,14 +663,15 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <TextBlock Grid.Column="0" Text="Nom d'utilisateur :" FontWeight="Bold" Foreground="#34495E"/>
+                                                <TextBlock Grid.Column="0" Text="Nom d'utilisateur :" FontWeight="Bold" Foreground="{StaticResource MediumTextBrush}" FontFamily="{StaticResource FluentFont}"/>
 
                                                 <TextBlock Grid.Column="1"
                Text="{Binding WindowsUsername}"
                Margin="8,0,8,0"
-               Foreground="#34495E"
+               Foreground="{StaticResource MediumTextBrush}"
                TextTrimming="CharacterEllipsis"
                TextWrapping="NoWrap"
+               FontFamily="{StaticResource FluentFont}"
                Visibility="{Binding ElementName=Root, Path=DataContext.ShowCredentials, Converter={StaticResource BooleanToVisibilityConverter}}"/>
 
                                                 <Button Grid.Column="2" Content="📋" Width="28" Height="28"
@@ -668,13 +688,14 @@
                                                     <ColumnDefinition Width="Auto"/>
                                                 </Grid.ColumnDefinitions>
 
-                                                <TextBlock Grid.Column="0" Text="Mot de passe :" FontWeight="Bold" Foreground="#34495E"/>
+                                                <TextBlock Grid.Column="0" Text="Mot de passe :" FontWeight="Bold" Foreground="{StaticResource MediumTextBrush}" FontFamily="{StaticResource FluentFont}"/>
 
                                                 <TextBlock Grid.Column="1"
                Margin="8,0,8,0"
-               Foreground="#34495E"
+               Foreground="{StaticResource MediumTextBrush}"
                TextTrimming="CharacterEllipsis"
                TextWrapping="NoWrap"
+               FontFamily="{StaticResource FluentFont}"
                Visibility="{Binding ElementName=Root, Path=DataContext.ShowCredentials, Converter={StaticResource BooleanToVisibilityConverter}}">
         <Run Text="{Binding WindowsPassword, Converter={StaticResource DecryptPasswordConverter}}"/>
                                                 </TextBlock>
@@ -694,6 +715,7 @@
                 </ScrollViewer>
             </DockPanel>
         </Border>
+
         <!-- Flèches de tri (zone principale) -->
         <StackPanel Grid.Column="1"
             Orientation="Vertical"

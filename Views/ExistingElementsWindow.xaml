@@ -4,28 +4,17 @@
         xmlns:conv="clr-namespace:AccesClientWPF.Converters"
         Title="Éléments existants"
         Width="700" Height="550"
-        Background="#EAEDED"
+        Background="{StaticResource WindowBackgroundBrush}"
         WindowStartupLocation="CenterOwner">
 
     <Window.Resources>
-        <conv:FileTypeToIconConverter x:Key="FileTypeToIconConverter"/>
-        <Style x:Key="RoundedButton" TargetType="Button">
-            <Setter Property="Background" Value="#5DADE2"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="10"
-                                BorderBrush="Transparent">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Resources/FluentTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+            
+            <conv:FileTypeToIconConverter x:Key="FileTypeToIconConverter"/>
+        </ResourceDictionary>
     </Window.Resources>
 
     <Grid Margin="10">
@@ -35,15 +24,15 @@
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
 
-        <Border Grid.Row="0" Background="#34495E" CornerRadius="10" Padding="12" Margin="0,0,0,10">
+        <Border Grid.Row="0" Background="{StaticResource FluentSidebarBrush}" CornerRadius="10" Padding="12" Margin="0,0,0,10">
             <DockPanel>
-                <TextBlock Text="Client :" Foreground="White" FontWeight="Bold" FontSize="16" Margin="0,0,10,0"/>
-                <TextBlock Text="{Binding ClientName}" Foreground="White" FontSize="16"/>
+                <TextBlock Text="Client :" Foreground="{StaticResource FluentTextOnDarkBrush}" FontWeight="Bold" FontSize="16" Margin="0,0,10,0" FontFamily="{StaticResource FluentFont}"/>
+                <TextBlock Text="{Binding ClientName}" Foreground="{StaticResource FluentTextOnDarkBrush}" FontSize="16" FontFamily="{StaticResource FluentFont}"/>
             </DockPanel>
         </Border>
 
         <!-- Tree : Racine + Rangements -->
-        <Border Grid.Row="1" Background="#FDFEFE" CornerRadius="10" Padding="10" BorderBrush="#D5DBDB" BorderThickness="1">
+        <Border Grid.Row="1" Background="{StaticResource FluentCardBrush}" CornerRadius="10" Padding="10" BorderBrush="{StaticResource LightBorderBrush}" BorderThickness="1">
             <TreeView x:Name="Tree"
                       ItemsSource="{Binding Nodes}"
                       SelectedItemChanged="Tree_SelectedItemChanged">
@@ -52,8 +41,8 @@
                         <StackPanel Orientation="Horizontal">
                             <Image Width="18" Height="18" Margin="0,0,8,0"
                                    Source="{Binding File, Converter={StaticResource FileTypeToIconConverter}}"/>
-                            <TextBlock Text="{Binding Display}" FontWeight="{Binding FontWeight}" Foreground="#2C3E50"/>
-                            <TextBlock Text="{Binding TypeText}" Foreground="#7F8C8D" Margin="10,0,0,0"/>
+                            <TextBlock Text="{Binding Display}" FontWeight="{Binding FontWeight}" Foreground="{StaticResource DarkTextBrush}" FontFamily="{StaticResource FluentFont}"/>
+                            <TextBlock Text="{Binding TypeText}" Foreground="{StaticResource LightTextBrush}" Margin="10,0,0,0" FontFamily="{StaticResource FluentFont}"/>
                         </StackPanel>
                     </HierarchicalDataTemplate>
                 </TreeView.ItemTemplate>
@@ -61,10 +50,10 @@
         </Border>
 
         <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Row="2" Margin="0,10,0,0">
-            <Button Content="Ajouter" Width="110" Margin="5" Click="AddElement_Click" Style="{StaticResource RoundedButton}"/>
-            <Button Content="Modifier" Width="110" Margin="5" Click="EditElement_Click" Style="{StaticResource RoundedButton}"/>
-            <Button Content="Supprimer" Width="110" Margin="5" Click="DeleteElement_Click" Style="{StaticResource RoundedButton}"/>
-            <Button Content="Fermer" Width="110" Margin="5" Click="Close_Click" Style="{StaticResource RoundedButton}"/>
+            <Button Content="Ajouter" Width="110" Margin="5" Click="AddElement_Click" Style="{StaticResource FluentButton}"/>
+            <Button Content="Modifier" Width="110" Margin="5" Click="EditElement_Click" Style="{StaticResource FluentButton}"/>
+            <Button Content="Supprimer" Width="110" Margin="5" Click="DeleteElement_Click" Style="{StaticResource FluentButton}"/>
+            <Button Content="Fermer" Width="110" Margin="5" Click="Close_Click" Style="{StaticResource FluentSubtleButton}"/>
         </StackPanel>
     </Grid>
 </Window>

@@ -2,76 +2,134 @@
         xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Gestion des Clients (Base Partagée)"
-        Background="#EAEDED"
+        Background="{StaticResource FluentSurfaceBrush}"
         WindowStartupLocation="CenterScreen"
         Width="700" Height="500"
         MinWidth="400" MinHeight="300"
-        ResizeMode="CanResize">
+        ResizeMode="CanResize"
+        FontFamily="{StaticResource FluentFont}">
+    
     <Window.Resources>
-        <Style x:Key="RoundedButton" TargetType="Button">
-            <Setter Property="Background" Value="#5DADE2"/>
-            <Setter Property="Foreground" Value="White"/>
-            <Setter Property="FontWeight" Value="Bold"/>
-            <Setter Property="BorderThickness" Value="0"/>
-            <Setter Property="Cursor" Value="Hand"/>
-            <Setter Property="Template">
-                <Setter.Value>
-                    <ControlTemplate TargetType="Button">
-                        <Border Background="{TemplateBinding Background}" CornerRadius="8" Padding="10" 
-                                BorderBrush="Transparent">
-                            <ContentPresenter HorizontalAlignment="Center" VerticalAlignment="Center"/>
-                        </Border>
-                    </ControlTemplate>
-                </Setter.Value>
-            </Setter>
-        </Style>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Resources/FluentTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
     </Window.Resources>
-    <Grid Margin="10">
+
+    <Grid Margin="20">
         <Grid.RowDefinitions>
             <RowDefinition Height="Auto"/>
             <RowDefinition Height="*" MinHeight="200"/>
             <RowDefinition Height="Auto"/>
         </Grid.RowDefinitions>
-        <StackPanel Orientation="Horizontal" Grid.Row="0" Margin="0,0,0,10">
-            <TextBlock Text="Nom du client :" VerticalAlignment="Center" Margin="0,0,10,0"/>
-            <TextBox x:Name="TxtClientName" Width="Auto" MinWidth="200" Background="#FFFFFF"/>
-            <Button Content="Ajouter le Client" Width="Auto" MinWidth="120" Margin="10,0,0,0" 
-                    Click="AddClient_Click" Style="{StaticResource RoundedButton}"/>
 
-            <!-- Bouton de tri -->
-            <Button x:Name="BtnSort" Width="Auto" MinWidth="90" Margin="10,0,0,0" 
-                    Click="SortClients_Click" Style="{StaticResource RoundedButton}">
-                <StackPanel Orientation="Horizontal">
-                    <TextBlock x:Name="TxtSortLabel" Text="Trier A-Z" VerticalAlignment="Center"/>
-                    <Path x:Name="SortIcon" Data="M7,21L12,17L17,21V3H7V21Z" Fill="White" Margin="5,0,0,0" 
-                          Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center"/>
-                </StackPanel>
-            </Button>
-        </StackPanel>
-        <Grid Grid.Row="1">
-            <Grid.ColumnDefinitions>
-                <ColumnDefinition Width="*"/>
-                <ColumnDefinition Width="Auto"/>
-            </Grid.ColumnDefinitions>
-            <ListBox x:Name="LstClients" DisplayMemberPath="Name" Background="#D5DBDB" BorderThickness="0"
-         ScrollViewer.VerticalScrollBarVisibility="Auto" Height="Auto" VerticalAlignment="Stretch"/>
-            <!-- Flèches pour monter et descendre les clients -->
-            <StackPanel Orientation="Vertical" VerticalAlignment="Center" Grid.Column="1" Margin="10,0,0,0">
-                <Button Content="&#x2191;" FontSize="20" Background="White" Foreground="SkyBlue" 
-                        Width="40" Height="40" FontWeight="Bold" BorderBrush="SkyBlue" 
-                        BorderThickness="2" Click="MoveUpClient_Click"/>
-                <Button Content="&#x2193;" FontSize="20" Background="White" Foreground="SkyBlue" 
-                        Width="40" Height="40" FontWeight="Bold" BorderBrush="SkyBlue" 
-                        BorderThickness="2" Click="MoveDownClient_Click"/>
+        <Border Grid.Row="0" Style="{StaticResource FluentCard}" Margin="0,0,0,12">
+            <StackPanel>
+                <TextBlock Text="Ajouter un client" FontSize="14" FontWeight="SemiBold" Margin="0,0,0,10"
+                           Foreground="{StaticResource FluentTextPrimaryBrush}"/>
+                
+                <Grid>
+                    <Grid.ColumnDefinitions>
+                        <ColumnDefinition Width="*"/>
+                        <ColumnDefinition Width="Auto"/>
+                    </Grid.ColumnDefinitions>
+
+                    <TextBox x:Name="TxtClientName" Style="{StaticResource FluentTextBox}" VerticalAlignment="Center"/>
+                    
+                    <Button Grid.Column="1" Content="Ajouter le Client" Width="Auto" MinWidth="120" Margin="8,0,0,0" 
+                            Click="AddClient_Click" Style="{StaticResource FluentButton}"/>
+                </Grid>
+
+                <!-- Bouton de tri -->
+                <Button x:Name="BtnSort" Width="Auto" MinWidth="90" Margin="0,12,0,0" 
+                        Click="SortClients_Click" Style="{StaticResource FluentButton}">
+                    <StackPanel Orientation="Horizontal">
+                        <TextBlock x:Name="TxtSortLabel" Text="Trier A-Z" VerticalAlignment="Center"/>
+                        <Path x:Name="SortIcon" Data="M7,21L12,17L17,21V3H7V21Z" Fill="White" Margin="5,0,0,0" 
+                              Width="16" Height="16" Stretch="Uniform" VerticalAlignment="Center"/>
+                    </StackPanel>
+                </Button>
             </StackPanel>
-        </Grid>
-        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Row="2" Margin="0,10,0,0">
+        </Border>
+
+        <Border Grid.Row="1" Style="{StaticResource FluentCard}" Padding="0" Margin="0,0,0,12">
+            <Grid>
+                <Grid.ColumnDefinitions>
+                    <ColumnDefinition Width="*"/>
+                    <ColumnDefinition Width="Auto"/>
+                </Grid.ColumnDefinitions>
+
+                <ListView x:Name="LstClients" Background="Transparent" BorderThickness="0"
+                         ScrollViewer.VerticalScrollBarVisibility="Auto" Height="Auto" VerticalAlignment="Stretch" Padding="4">
+                    <ListView.ItemContainerStyle>
+                        <Style TargetType="ListViewItem">
+                            <Setter Property="HorizontalContentAlignment" Value="Stretch"/>
+                            <Setter Property="Padding" Value="0"/>
+                            <Setter Property="Margin" Value="0,1"/>
+                            <Setter Property="Template">
+                                <Setter.Value>
+                                    <ControlTemplate TargetType="ListViewItem">
+                                        <Border x:Name="Bd" CornerRadius="6" Padding="6,6" Background="Transparent"
+                                                SnapsToDevicePixels="True">
+                                            <ContentPresenter/>
+                                        </Border>
+                                        <ControlTemplate.Triggers>
+                                            <Trigger Property="IsMouseOver" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource LightGrayBrush}"/>
+                                            </Trigger>
+                                            <Trigger Property="IsSelected" Value="True">
+                                                <Setter TargetName="Bd" Property="Background" Value="{StaticResource VeryLightBlueBrush}"/>
+                                            </Trigger>
+                                        </ControlTemplate.Triggers>
+                                    </ControlTemplate>
+                                </Setter.Value>
+                            </Setter>
+                        </Style>
+                    </ListView.ItemContainerStyle>
+                    <ListView.ItemTemplate>
+                        <DataTemplate>
+                            <Grid>
+                                <Grid.ColumnDefinitions>
+                                    <ColumnDefinition Width="*"/>
+                                    <ColumnDefinition Width="Auto"/>
+                                </Grid.ColumnDefinitions>
+
+                                <TextBlock Grid.Column="0" Text="{Binding Name}" VerticalAlignment="Center"
+                                           FontSize="13" Foreground="{StaticResource FluentTextPrimaryBrush}"/>
+
+                                <Button Grid.Column="1" ToolTip="Modifier"
+                                        Click="EditClient_Click"
+                                        Style="{StaticResource FluentSubtleButton}"
+                                        VerticalAlignment="Center" Padding="6,4" Margin="4,0">
+                                    <Path Data="M3,17.25V21h3.75L17.81,9.94l-3.75-3.75L3,17.25Z M20.71,7.04c.39-.39.39-1.02,0-1.41l-2.34-2.34c-.39-.39-1.02-.39-1.41,0l-1.83,1.83l3.75,3.75L20.71,7.04Z"
+                                          Fill="{StaticResource FluentTextSecondaryBrush}"
+                                          Width="16" Height="16" Stretch="Uniform"/>
+                                </Button>
+                            </Grid>
+                        </DataTemplate>
+                    </ListView.ItemTemplate>
+                </ListView>
+
+                <!-- Flèches pour monter et descendre les clients -->
+                <StackPanel Orientation="Vertical" VerticalAlignment="Center" Grid.Column="1" Margin="10,0,0,0">
+                    <Button Content="&#x2191;" FontSize="20" Background="White" Foreground="SkyBlue" 
+                            Width="40" Height="40" FontWeight="Bold" BorderBrush="SkyBlue" 
+                            BorderThickness="2" Click="MoveUpClient_Click" Margin="0,0,0,4"/>
+                    <Button Content="&#x2193;" FontSize="20" Background="White" Foreground="SkyBlue" 
+                            Width="40" Height="40" FontWeight="Bold" BorderBrush="SkyBlue" 
+                            BorderThickness="2" Click="MoveDownClient_Click"/>
+                </StackPanel>
+            </Grid>
+        </Border>
+
+        <StackPanel Orientation="Horizontal" HorizontalAlignment="Right" Grid.Row="2">
             <Button Content="Ajouter un Élément" Width="Auto" MinWidth="152" Margin="5" 
-                    Click="AddEntry_Click" Style="{StaticResource RoundedButton}"/>
+                    Click="AddEntry_Click" Style="{StaticResource FluentButton}"/>
             <Button Content="Supprimer Client" Width="Auto" MinWidth="120" Margin="5" 
-                    Click="DeleteClient_Click" Style="{StaticResource RoundedButton}"/>
+                    Click="DeleteClient_Click" Style="{StaticResource FluentDangerButton}"/>
             <Button Content="Fermer" Width="Auto" MinWidth="80" Margin="5" 
-                    Click="Close_Click" Style="{StaticResource RoundedButton}"/>
+                    Click="Close_Click" Style="{StaticResource FluentSubtleButton}"/>
         </StackPanel>
     </Grid>
 </Window>

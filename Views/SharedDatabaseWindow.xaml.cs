@@ -271,9 +271,15 @@ namespace AccesClientWPF.Views
                         string.Equals(c.Name, importedClient.Name, StringComparison.OrdinalIgnoreCase));
 
                     if (existingClient == null)
+                    {
+                        // Client n'existe pas → ajouter comme nouveau
                         currentDatabase.Clients.Add(importedClient);
+                    }
                     else
-                        existingClient.Name = importedClient.Name;
+                    {
+                        // Client existe → mettre à jour ses propriétés
+                        existingClient.Acronym = importedClient.Acronym;
+                    }
                 }
 
                 // 2) Upsert Files (inclut Rangements + déplacements)

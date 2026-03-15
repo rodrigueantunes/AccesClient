@@ -27,7 +27,6 @@ namespace AccesClientWPF.Helpers
                         int logicalW = b.Right - b.Left;
                         int logicalH = b.Bottom - b.Top;
 
-                        // Résolution physique (fiable, non DPI-virtualisée)
                         int physicalW = logicalW;
                         int physicalH = logicalH;
 
@@ -42,7 +41,6 @@ namespace AccesClientWPF.Helpers
                             physicalH = dm.dmPelsHeight;
                         }
 
-                        // DPI (optionnel + fallback)
                         uint dpiX = 96, dpiY = 96;
                         if (DpiHelper.TryGetMonitorEffectiveDpi(hMon, out var dx, out var dy))
                         {
@@ -51,7 +49,6 @@ namespace AccesClientWPF.Helpers
                         }
                         else
                         {
-                            // fallback "intelligent" : ratio physique/logique si différent
                             if (logicalW > 0 && physicalW > 0)
                             {
                                 var sx = (double)physicalW / logicalW;
@@ -95,6 +92,16 @@ namespace AccesClientWPF.Helpers
                 .ToList();
         }
 
+        public static int SpatialPosition(ScreenItem screen, IReadOnlyList<ScreenItem> allSortedByLayout)
+        {
+            for (int i = 0; i < allSortedByLayout.Count; i++)
+            {
+                if (allSortedByLayout[i].Index == screen.Index)
+                    return i;
+            }
+            return -1;
+        }
+
         public static bool AreSelectedScreensContiguousInWindowsOrder(
             IEnumerable<ScreenItem> allScreensAlreadyInWindowsOrder,
             IEnumerable<ScreenItem> selectedScreens,
@@ -128,7 +135,7 @@ namespace AccesClientWPF.Helpers
 
             if ((max - min + 1) != positions.Count)
             {
-                reason = "Multi-écran désactivé : sélectionne des écrans consécutifs dans l’ordre Windows (ex: 1-4 ou 4-3).";
+                reason = "Multi-écran désactivé : sélectionnez des écrans consécutifs dans l'ordre spatial (ex: 1-2 ou 2-3-4).";
                 return false;
             }
 

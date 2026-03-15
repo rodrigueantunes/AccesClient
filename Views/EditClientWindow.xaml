@@ -1,0 +1,63 @@
+<Window x:Class="AccesClientWPF.Views.EditClientWindow"
+        xmlns="http://schemas.microsoft.com/winfx/2006/xaml/presentation"
+        xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
+        Title="Modifier le Client"
+        Background="{StaticResource FluentSurfaceBrush}"
+        WindowStartupLocation="CenterOwner"
+        Width="400" Height="400"
+        ResizeMode="NoResize"
+        FontFamily="{StaticResource FluentFont}"
+        ShowInTaskbar="False">
+
+    <Window.Resources>
+        <ResourceDictionary>
+            <ResourceDictionary.MergedDictionaries>
+                <ResourceDictionary Source="/Resources/FluentTheme.xaml"/>
+            </ResourceDictionary.MergedDictionaries>
+        </ResourceDictionary>
+    </Window.Resources>
+
+    <Grid Margin="20">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+            <RowDefinition Height="Auto"/>
+        </Grid.RowDefinitions>
+
+        <TextBlock Text="Modifier le Client" FontSize="16" FontWeight="SemiBold" Margin="0,0,0,16"
+                   Foreground="{StaticResource FluentTextPrimaryBrush}"/>
+
+        <Grid Grid.Row="1" Margin="0,0,0,12">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            
+            <TextBlock Text="Nom du client" FontSize="12" Margin="0,0,0,4"
+                       Foreground="{StaticResource FluentTextSecondaryBrush}"/>
+            <TextBox x:Name="TxtClientName" Grid.Row="1" Style="{StaticResource FluentTextBox}" 
+                     Height="36" VerticalContentAlignment="Center"/>
+        </Grid>
+
+        <Grid Grid.Row="2" Margin="0,0,0,16">
+            <Grid.RowDefinitions>
+                <RowDefinition Height="Auto"/>
+                <RowDefinition Height="Auto"/>
+            </Grid.RowDefinitions>
+            
+            <TextBlock Text="Acronyme (max 3 caractères)" FontSize="12" Margin="0,0,0,4"
+                       Foreground="{StaticResource FluentTextSecondaryBrush}"/>
+            <TextBox x:Name="TxtAcronym" Grid.Row="1" Style="{StaticResource FluentTextBox}" 
+                     Height="36" MaxLength="3" CharacterCasing="Upper" VerticalContentAlignment="Center"/>
+        </Grid>
+
+        <StackPanel Grid.Row="4" Orientation="Horizontal" HorizontalAlignment="Right">
+            <Button Content="Annuler" Width="90" Margin="0,0,6,0" Click="Cancel_Click"
+                    Style="{StaticResource FluentSubtleButton}"/>
+            <Button Content="Enregistrer" Width="110" Click="Save_Click"
+                    Style="{StaticResource FluentButton}"/>
+        </StackPanel>
+    </Grid>
+</Window>

@@ -174,6 +174,18 @@ namespace AccesClientWPF.Views
             }
         }
 
+        private void EditClient_Click(object sender, RoutedEventArgs e)
+        {
+            if (LstClients.SelectedItem is ClientModel selectedClient)
+            {
+                var editWindow = new EditClientWindow(selectedClient, _viewModel.Clients);
+                editWindow.ShowDialog();
+            }
+            else
+            {
+                MessageBox.Show("Veuillez sélectionner un client à modifier.", "Erreur", MessageBoxButton.OK, MessageBoxImage.Error);
+            }
+        }
 
         private void Close_Click(object sender, RoutedEventArgs e)
         {
